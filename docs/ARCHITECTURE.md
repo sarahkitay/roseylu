@@ -2,16 +2,22 @@
 
 ## Current prototype scope
 
-This repo currently implements the **safety-critical core** as a local Python
-package, runnable via CLI or a thin FastAPI wrapper — no cloud infra, no
-mobile client, no fine-tuned model yet. That's deliberate: the guardrail
-pipeline and response engine are the part that has to be right before
-anything else matters, so they're built and testable first, in isolation,
-without needing AWS, app store accounts, or GPU access.
+This repo implements the **safety-critical core** as a local Python package,
+runnable via CLI or a thin FastAPI wrapper, plus a **real from-scratch
+language model** trained on this machine — no cloud infra, no mobile client,
+no hosted LLM API anywhere in the runtime path. That's deliberate on two
+counts: the guardrail pipeline and response engine are the part that has to
+be right before anything else matters, so they're built and testable first,
+in isolation; and the generation backend is intentionally self-trained
+rather than a wrapped third-party API, per product direction — see
+`PRODUCT_VISION.md`'s Technical Architecture section.
 
 ```
 safeai-kids/
   docs/                        product spec, safety model, compliance, blockers
+  model/
+    architecture.py             hand-written GPT (embeddings, attention, MLP) -- no pretrained weights
+    tokenizer.py                from-scratch character-level tokenizer
   backend/
     app/
       config.py                 age tiers, thresholds
@@ -20,14 +26,15 @@ safeai-kids/
         wordlists/*.yaml        editable keyword/slang lists per category
         keyword_filter.py       layer 1: rule-based
         embedding_classifier.py layer 2: semantic (TF-IDF stand-in today)
-        llm_judge.py            layer 3: nuanced judgment (heuristic stand-in today)
+        llm_judge.py            layer 3: nuanced judgment (heuristic rules, no LLM API)
         pipeline.py             runs all 3 layers, decides Action
       response/
         redirect_engine.py      explain-then-redirect templates, tiered by age
       persona/
         persona_engine.py       child-customized persona + tone blending
       generation/
-        base_model.py           pluggable model backend interface
+        base_model.py           pluggable model backend interface + stub fallback
+        local_model.py          loads the from-scratch checkpoint, runs generation
       review_queue.py           append-only escalation log (no raw text)
       main.py                   FastAPI app: POST /chat
     tests/                      pytest suite against the seed dataset
@@ -35,11 +42,18 @@ safeai-kids/
   cli/
     chat.py                     interactive terminal chat against the pipeline
   training/
-    data/seed_dataset.jsonl     small, DRAFT, clinically-unreviewed examples
+    data/
+      seed_dataset.jsonl        small, DRAFT, clinically-unreviewed guardrail examples
+      synthetic_dialogues.py    hand-authored Child:/Rosey: training dialogue
+      corpus/public_domain/     public-domain children's literature (fluency data)
+      corpus/combined.txt       assembled training corpus (build_corpus.py output)
+    runs/v0/                    trained checkpoint + tokenizer vocab (gitignored)
     scripts/
-      prepare_dataset.py        seed_dataset.jsonl -> HF dataset format
-      finetune_lora.py          LoRA fine-tune scaffold (needs GPU + base model download)
-      evaluate.py               runs guardrail pipeline against seed set, reports metrics
+      build_corpus.py           assembles the training corpus from the 3 sources above
+      train_from_scratch.py     trains model/architecture.py on the corpus, saves checkpoint
+      prepare_dataset.py        seed_dataset.jsonl -> chat-format JSONL (for the alt LoRA path below)
+      finetune_lora.py          alt path: LoRA fine-tune of an open-source base model (not Anthropic; needs GPU, not run here)
+      evaluate.py                runs guardrail pipeline against seed set, reports metrics
 ```
 
 ## Request flow (implemented)
@@ -67,14 +81,23 @@ delays the reply; it only adds a queue entry for specialist review.
 Per `PRODUCT_VISION.md`:
 
 - **Clients**: iOS/Android app (standalone), eventually OS-level integration.
-- **API**: same FastAPI-shaped service, deployed to AWS, fronting a real
-  fine-tuned base model.
+- **API**: same FastAPI-shaped service, deployed to AWS, fronting the
+  self-trained model.
 - **Data**: AWS RDS for account/profile/cross-device-sync state, scoped per
   `DATA_RETENTION_POLICY.md` once that's legally reviewed.
-- **Model serving**: fine-tuned open-source base model (primary) + this
-  guardrail pipeline (safety net, always on regardless of fine-tune quality)
-  + real embedding model and LLM-judge backend swapped into the
-  `Classifier`/`JudgeBackend` interfaces already defined.
+- **Model serving**: a larger, better-trained version of the same
+  from-scratch architecture (more data, more compute, likely a trained BPE
+  vocab instead of char-level) is the primary path to real capability,
+  scaled up without introducing a third-party API dependency. If that
+  ceiling proves too low, `training/scripts/finetune_lora.py` is a documented
+  fallback -- LoRA fine-tuning an open-source *base model* (e.g. Llama/Qwen
+  weights, downloaded once, run locally/on owned infra) -- still never a
+  live call to Anthropic or any other hosted provider. Either way, this
+  guardrail pipeline stays the safety net, always on regardless of
+  generation quality, with real embedding and judge implementations swapped
+  into the `Classifier`/`JudgeBackend` interfaces already defined (trained
+  classifiers, not an LLM API call, to keep the "no third-party API in the
+  live path" property).
 - **Image pipeline**: CSAM screening (third-party API — e.g., a hash-matching
   service, not build-your-own), appearance-analysis refusal, zero retention.
   Not started — see `BLOCKERS.md`.
@@ -86,5 +109,13 @@ Per `PRODUCT_VISION.md`:
 The guardrail pipeline is the trust boundary, not the model. Every code path
 that reaches `ModelBackend.generate()` has already passed
 `GuardrailPipeline.evaluate()` — there is no direct route from user input to
-the base model. Keep it that way as real model backends get wired in;
-"the fine-tune is well-behaved" is not a reason to skip the pipeline.
+the base model. Keep it that way as the model gets bigger/better; "the model
+is well-behaved" is not a reason to skip the pipeline.
+
+Second principle, added when the generation backend moved off any hosted
+API: no `ModelBackend` or `JudgeBackend` implementation in `backend/app/`
+may call a third-party LLM API. Both interfaces exist specifically so a
+better implementation can be swapped in later — a bigger self-trained model,
+a locally-run open-source fine-tune, a real trained classifier for the judge
+layer — but "swap in a hosted API call" is not an acceptable implementation
+of either interface for this product, independent of which provider.

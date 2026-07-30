@@ -5,12 +5,14 @@ pipeline and an explain-then-redirect response philosophy, instead of hard
 blocks or silent parent surveillance. See `docs/PRODUCT_VISION.md` for the
 full product spec.
 
-**Status: early prototype.** The guardrail pipeline, response engine, and API
-are real and tested. No fine-tuned model, mobile client, or cloud deployment
-exists yet, and several launch-blocking prerequisites (clinical review, legal
-counsel, a finalized data policy) are explicitly unresolved. Read
-`docs/BLOCKERS.md` before treating anything here as ready for a real child to
-use.
+**Status: early prototype.** The guardrail pipeline, response engine, API, and
+a real from-scratch-trained local language model are built and tested. No
+hosted LLM API is used anywhere in the running app -- the generation backend
+is a transformer trained from random initialization on this machine (see
+`training/README.md`). No mobile client or cloud deployment exists yet, and
+several launch-blocking prerequisites (clinical review, legal counsel, a
+finalized data policy) are explicitly unresolved. Read `docs/BLOCKERS.md`
+before treating anything here as ready for a real child to use.
 
 ## Start here
 
@@ -31,6 +33,10 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -r backend/requirements.txt
 
+# build the training corpus and train the from-scratch model (once)
+python3 training/scripts/build_corpus.py
+python3 training/scripts/train_from_scratch.py --max-iters 3000
+
 # talk to it directly, no server needed
 python3 cli/chat.py --age 11 --name Rosey --verbose
 
@@ -44,20 +50,22 @@ cd backend && python -m pytest -q
 python3 training/scripts/evaluate.py
 ```
 
-No model API key is required to run any of the above -- the guardrail
-pipeline, persona engine, and redirect engine are fully self-contained. Set
-`ANTHROPIC_API_KEY` to activate real generation on the ALLOW path and a real
-LLM-as-judge on the guardrail's third layer (`backend/app/generation/base_model.py`,
-`backend/app/guardrails/llm_judge.py`); without it, both fall back to
-clearly-labeled stand-ins so the rest of the system stays fully testable.
+No API key of any kind is used anywhere in this repo. The guardrail
+pipeline, persona engine, and redirect engine are fully self-contained
+regardless of whether a trained model checkpoint exists. Without one, the
+ALLOW-path generation backend falls back to a clearly-labeled stub
+(`backend/app/generation/base_model.py::StubEchoBackend`) so the rest of the
+system stays fully testable; once `training/runs/v0/checkpoint.pt` exists,
+`LocalTransformerBackend` picks it up automatically.
 
 ## Repo layout
 
 ```
 docs/       product spec, safety model, compliance, blockers
+model/      from-scratch transformer architecture + tokenizer (no pretrained weights)
 backend/    guardrail pipeline, persona/redirect engines, FastAPI app, tests
 cli/        interactive terminal chat against the pipeline
-training/   seed dataset (draft), dataset prep, LoRA fine-tune scaffold, evaluator
+training/   corpus assembly, from-scratch training loop, seed dataset (draft), evaluator
 ```
 
 See `docs/ARCHITECTURE.md` for the full breakdown and request flow.

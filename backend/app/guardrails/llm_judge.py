@@ -3,17 +3,20 @@ about -- specifically, combinations of individually-weak signals that only
 look risky together (e.g. a secrecy phrase *and* an age/photo question in
 the same message, neither of which alone would clear a tier-2 threshold).
 
-No LLM API key is wired up in this prototype, so the default backend
-(`HeuristicJudgeBackend`) approximates the *shape* of that judgment with
-hand-written combination rules. `AnthropicJudgeBackend` is a real
-implementation behind the same interface -- it activates automatically if
-`ANTHROPIC_API_KEY` is set and the `anthropic` package is installed, so
-wiring up a real judge later is a config change, not a rewrite. Until then,
-treat every judge-layer score as a heuristic guess, not a model's assessment.
+This layer runs on every live request, which is exactly why it does NOT call
+a hosted LLM API: the product's generation path is a locally-trained model
+with no third-party dependency (see app/generation/local_model.py), and the
+safety pipeline holds the same line. `HeuristicJudgeBackend` approximates
+the *shape* of an LLM judge's combination-reasoning with hand-written rules.
+The honest name for "judge" here is closer to "a second opinion using
+different logic than the keyword layer" than "an LLM examined this." A
+real learned judge -- e.g. a small classifier trained on
+training/data/seed_dataset.jsonl once it's been clinically expanded -- is
+the eventual replacement for this class, behind the same `JudgeBackend`
+interface, not a call out to someone else's model.
 """
 from __future__ import annotations
 
-import os
 import re
 from abc import ABC, abstractmethod
 
@@ -79,63 +82,4 @@ class HeuristicJudgeBackend(JudgeBackend):
         return result
 
 
-class AnthropicJudgeBackend(JudgeBackend):
-    """Real LLM-as-judge. Only usable once ANTHROPIC_API_KEY is set and the
-    `anthropic` package is installed -- not exercised by default anywhere in
-    this repo (no key is present in this environment). Wire it in by
-    swapping `DEFAULT_JUDGE` in this module once credentials exist.
-    """
-
-    _SYSTEM_PROMPT = (
-        "You are a safety classifier for a children's AI product. Given a "
-        "message from a child, score 0.0-1.0 how strongly it signals each of: "
-        "SELF_HARM, BODY_IMAGE, GROOMING, VIOLENCE, SUBSTANCE, HATE_HARASSMENT, "
-        "DANGEROUS_ACTIVITY, EXPLICIT_SEXUAL. Respond as compact JSON mapping "
-        "category name to score. Err toward higher scores for tier-1 "
-        "categories (SELF_HARM, BODY_IMAGE, GROOMING) when ambiguous."
-    )
-
-    def __init__(self, model: str = "claude-sonnet-5") -> None:
-        import anthropic  # local import: optional dependency
-
-        self._client = anthropic.Anthropic()
-        self._model = model
-
-    def judge(self, message: str) -> JudgeResult:
-        import json
-
-        response = self._client.messages.create(
-            model=self._model,
-            max_tokens=512,
-            system=self._SYSTEM_PROMPT,
-            messages=[{"role": "user", "content": message}],
-        )
-        raw_text = "".join(
-            block.text for block in response.content if getattr(block, "type", None) == "text"
-        )
-        try:
-            scores = json.loads(raw_text)
-        except json.JSONDecodeError:
-            return JudgeResult()
-
-        result = JudgeResult()
-        for name, score in scores.items():
-            try:
-                category = RiskCategory[name]
-            except KeyError:
-                continue
-            result.category_scores[category] = float(score)
-            result.category_evidence[category] = ["anthropic-judge"]
-        return result
-
-
-def _build_default_backend() -> JudgeBackend:
-    if os.environ.get("ANTHROPIC_API_KEY"):
-        try:
-            return AnthropicJudgeBackend()
-        except ImportError:
-            pass
-    return HeuristicJudgeBackend()
-
-
-DEFAULT_JUDGE: JudgeBackend = _build_default_backend()
+DEFAULT_JUDGE: JudgeBackend = HeuristicJudgeBackend()

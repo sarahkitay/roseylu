@@ -64,11 +64,24 @@ for this reason.
 
 ## Technical Architecture (summary — full detail in `ARCHITECTURE.md`)
 
-- **Model strategy**: Fine-tune an open-source base model as the primary path;
-  layered API guardrails as a fallback/supplement, not the other way around.
-  In the current build, the guardrail pipeline is the thing that actually
-  gates unsafe output — treat it as the safety-critical layer regardless of
-  how good the fine-tune gets. A fine-tune should never be trusted alone.
+- **Model strategy**: The app's generation path runs on a model trained from
+  scratch on this machine — no hosted LLM API in the runtime path, ever,
+  including Anthropic's. Concretely: a decoder-only transformer written by
+  hand (`model/architecture.py`), random-initialized, trained locally
+  (`training/scripts/train_from_scratch.py`) on a from-scratch-assembled
+  corpus. Claude's role is explicitly limited to an offline, developer-facing
+  one — authoring synthetic training dialogue (`training/data/synthetic_dialogues.py`)
+  and assisting with the engineering — never a live call the deployed app
+  makes. See `training/README.md` for what this buys and what it doesn't:
+  at the current corpus size and compute budget this is a genuine, working
+  training pipeline, not yet a conversationally competent assistant — that's
+  a capability gap to close with more data/compute or a larger open-source
+  base model to fine-tune (scaffolded in `training/scripts/finetune_lora.py`
+  as a documented future option, itself also never Anthropic).
+  Regardless of which generation path is active, the guardrail pipeline is
+  the thing that actually gates unsafe output — treat it as the
+  safety-critical layer independent of generation quality. A model's own
+  output should never be trusted alone.
 - **Hosting**: Cloud (AWS + RDS), cross-device continuity as a hard UX
   requirement (phone ↔ tablet).
 - **Latency budget**: Consumer-AI-comparable (a few seconds). Kids disengage

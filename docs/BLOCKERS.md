@@ -39,6 +39,20 @@ of engineering polish substitutes for them.
    `ChildProfile` takes an age as a field; it does not implement verifiable
    parental consent, which is a COPPA requirement, not a nice-to-have.
 
+## Capability gap (not a safety blocker, but don't oversell it)
+
+8. **The from-scratch model is not conversationally competent yet.** It's a
+   real, working training pipeline -- see `training/README.md` -- but a
+   ~10M-parameter character-level model trained on a ~600K-character corpus
+   is a proof of concept, not an assistant. This doesn't block the safety
+   architecture (the guardrail pipeline gates output regardless of
+   generation quality) but it does block a real product launch on its own
+   terms: closing it needs either substantially more training data/compute
+   at the same from-scratch approach, or falling back to fine-tuning a
+   larger open-source pretrained model (`training/scripts/finetune_lora.py`)
+   -- both documented as options in `training/README.md`, neither involving
+   a third-party hosted API.
+
 ## What's reasonable to build now, ahead of those blockers
 
 Everything currently in this repo: the guardrail pipeline architecture, the

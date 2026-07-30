@@ -6,3 +6,4 @@ PyYAML>=6.0
 python-dotenv>=1.0
 pytest>=8.3
 httpx>=0.27
+torch>=2.0   # runs the from-scratch local model (model/); no other LLM API dependency in the app

@@ -62,17 +62,20 @@ to agree.
    phrases per category, to catch intent that doesn't hit a literal keyword
    ("do people think I'm ugly" vs. a keyword list that only has "ugly").
    **Current implementation is a TF-IDF cosine-similarity stand-in**
-   (`SemanticClassifier`), not a real embedding model — no embedding API key
-   or local model is wired up yet. It's structured behind the same
-   `Classifier` interface so swapping in `sentence-transformers` or an
-   embeddings API is a one-file change, not a rewrite. Don't mistake the
-   stand-in for the real thing when reasoning about recall.
+   (`SemanticClassifier`), not a real embedding model. It's structured behind
+   the same `Classifier` interface so swapping in a locally-run embedding
+   model (e.g. `sentence-transformers`, run on-device/on owned infra — not a
+   hosted embeddings API) is a one-file change, not a rewrite. Don't mistake
+   the stand-in for the real thing when reasoning about recall.
 
 3. **`llm_judge.py`** — nuanced judgment call for anything ambiguous. Same
-   story: no LLM API key is wired up, so the default `JudgeBackend` is a
-   heuristic (checks combinations the first two layers see individually but
-   might not combine — e.g. secrecy language + adult-framing together). Real
-   LLM-as-judge slots in behind `JudgeBackend.judge()`.
+   story: the default `JudgeBackend` is a heuristic (checks combinations the
+   first two layers see individually but might not combine — e.g. secrecy
+   language + adult-framing together). This layer runs on every live
+   request, so its eventual replacement is a trained classifier run locally,
+   not a call to a hosted LLM API — see `docs/ARCHITECTURE.md`'s "no
+   third-party API in the live path" rule, which applies to this layer as
+   much as to generation.
 
 Pipeline output is a `GuardrailResult` (`backend/app/models/schemas.py`) with
 per-category scores, the max-scoring category, and an `Action`:
