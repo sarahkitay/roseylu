@@ -1,0 +1,66 @@
+# Blockers to real production launch
+
+This file exists so "prod ready" doesn't quietly come to mean "the code
+runs." For a product that talks to children about self-harm, body image, and
+grooming risk, code quality is necessary and nowhere near sufficient. These
+are the items the founding product interrogation itself flagged as
+unresolved — they are not implementable by writing more Python, and no amount
+of engineering polish substitutes for them.
+
+## Hard blockers — must close before any real child uses this
+
+1. **Clinical consultation.** No formal child psychologist / developmental
+   specialist review has happened. Every response template in
+   `redirect_engine.py` and every example in `training/data/seed_dataset.jsonl`
+   is a well-read engineer's best guess, not a validated clinical
+   intervention. This is explicitly true of the tier-1 categories
+   (self-harm, body image, grooming) where a wrong guess is highest-cost.
+2. **Legal counsel engagement.** Liability architecture, terms of service,
+   and the guardrail audit trail all need to be built with legal guidance.
+   None of that exists yet. This also gates the data retention policy (see
+   below) and any real claim about COPPA compliance — the checklist in
+   `COMPLIANCE_COPPA.md` is an engineering readiness list, not a compliance
+   sign-off.
+3. **Data retention & deletion policy finalization.** `DATA_RETENTION_POLICY.md`
+   is a draft built to give the code something to target; it has not been
+   reviewed by counsel or a privacy architect and should not gate real data
+   collection decisions.
+4. **Human review queue staffing.** The code writes to
+   `backend/app/review_queue.py`; nobody reads it yet. A logged escalation
+   with no specialist on the other end is not a functioning safety net.
+5. **CSAM screening integration.** Image input is a stated product
+   requirement and is **not implemented** in this prototype at all — no image
+   endpoint exists yet, specifically because CSAM screening has to be in
+   place before image upload ships, not after.
+6. **Security audit.** AWS/RDS hosting with cross-device sync of
+   child-related data needs a real security audit before it holds real
+   accounts. Nothing in this prototype has been audited.
+7. **Formal age-verification / parental consent flow.** The prototype's
+   `ChildProfile` takes an age as a field; it does not implement verifiable
+   parental consent, which is a COPPA requirement, not a nice-to-have.
+
+## What's reasonable to build now, ahead of those blockers
+
+Everything currently in this repo: the guardrail pipeline architecture, the
+response-engine shape, the persona system, the training/evaluation scaffold,
+and docs that make the open questions visible instead of hiding them. Getting
+the *architecture* right — three-layer guardrails as the trust boundary, a
+human review queue as a first-class concept, non-persistence of raw child
+chat by default — makes the eventual clinical/legal review faster and gives
+reviewers something concrete to react to, which is worth more than a
+whiteboard diagram. What isn't reasonable is treating any of it as safe to
+put in front of a real child before the blockers above close.
+
+## Suggested order of operations
+
+1. Clinical + legal engagement (parallel, both needed before real data
+   collection of any kind).
+2. Finalize `DATA_RETENTION_POLICY.md` with counsel.
+3. Clinically review and rewrite `redirect_engine.py` templates and
+   `training/data/seed_dataset.jsonl` before either is treated as anything
+   more than a scaffold.
+4. Staff the review queue (even a single specialist, part-time, is better
+   than an unread log).
+5. Build the CSAM screening integration before any image endpoint ships.
+6. Security audit before real accounts / real AWS deployment.
+7. VPC-compliant account flow before any child data collection begins.
