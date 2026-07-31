@@ -2,7 +2,7 @@ import pytest
 
 from app.config import AgeTier
 from app.models.schemas import RiskCategory
-from app.response.redirect_engine import build_redirect
+from app.response.redirect_engine import build_generation_safety_fallback, build_redirect
 
 
 @pytest.mark.parametrize("category", [RiskCategory.SELF_HARM, RiskCategory.BODY_IMAGE, RiskCategory.GROOMING])
@@ -31,3 +31,10 @@ def test_body_image_never_evaluates_appearance():
 def test_tier2_category_gets_generic_but_nonempty_redirect():
     text = build_redirect(RiskCategory.SUBSTANCE, AgeTier.MIDDLE)
     assert len(text) > 10
+
+
+@pytest.mark.parametrize("tier", list(AgeTier))
+def test_generation_safety_fallback_exists_for_every_tier(tier):
+    text = build_generation_safety_fallback(tier)
+    assert isinstance(text, str)
+    assert len(text) > 5

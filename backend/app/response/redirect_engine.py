@@ -156,3 +156,24 @@ def build_redirect(category: RiskCategory, tier: AgeTier) -> str:
     if per_tier is not None:
         return per_tier[tier]
     return _tier2_redirect(category, tier)
+
+
+# Used when the guardrail pipeline flags the MODEL'S OWN generated reply,
+# not the child's message -- see main.py's output-side check. The tier-1/
+# tier-2 templates above are written as if responding to something the
+# child said ("that's such a normal thing to wonder about...") and would be
+# a non-sequitur here, since the child didn't say anything risky. This is
+# deliberately generic and low-friction: a small, incoherent, or
+# unpredictable model can produce an inappropriate-sounding fragment on a
+# completely benign input (observed directly during dev testing -- see
+# training/README.md), and the right response to that is "let's try again,"
+# not a redirect script written for a different situation.
+_GENERATION_FALLBACK = {
+    AgeTier.EARLY: "Oops, that didn't come out right! Can you ask me again?",
+    AgeTier.MIDDLE: "That didn't come out the way I meant it to -- can you ask me that again?",
+    AgeTier.TEEN: "That response didn't come out right on my end -- mind asking again?",
+}
+
+
+def build_generation_safety_fallback(tier: AgeTier) -> str:
+    return _GENERATION_FALLBACK[tier]

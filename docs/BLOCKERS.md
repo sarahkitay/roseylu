@@ -53,6 +53,21 @@ of engineering polish substitutes for them.
    -- both documented as options in `training/README.md`, neither involving
    a third-party hosted API.
 
+## A new consideration from adding online learning
+
+9. **Continual training on live conversation complicates "clinically
+   reviewed" as a one-time gate.** `backend/app/generation/online_trainer.py`
+   means the model's weights on disk today are not the same weights that
+   existed after the last full training run -- they drift with every dev
+   session. That's fine for a solo prototype, but it means a future clinical
+   review of model *behavior* would need either (a) online learning turned
+   off for anything a reviewer signs off on, or (b) a defined re-validation
+   cadence, since a model that keeps training on whatever a developer (or
+   later, real conversations) feeds it can drift away from a previously
+   reviewed baseline without anyone deciding that should happen. Worth a
+   deliberate decision before this pattern goes anywhere near real users,
+   not just an engineering default carried over from the dev-preview stage.
+
 ## What's reasonable to build now, ahead of those blockers
 
 Everything currently in this repo: the guardrail pipeline architecture, the

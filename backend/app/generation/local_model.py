@@ -11,11 +11,18 @@ rendered redirect templates + public-domain literature for general fluency),
 so generation here just continues that exact format and truncates at the
 next turn boundary. Treat its output quality as a proof-of-concept, not a
 finished assistant -- see training/README.md for the honest scope/limits.
+
+This backend also owns an `OnlineTrainer` (online_trainer.py) that takes
+short training bursts on live conversation as it happens -- see that
+module's docstring for how and why. `main.py` is responsible for calling
+`online_trainer.log_interaction(...)` after a real (non-redirected) reply,
+from a background task so it doesn't add latency to the response.
 """
 from __future__ import annotations
 
 import re
 import sys
+import threading
 from pathlib import Path
 
 import torch
@@ -28,6 +35,7 @@ from model.architecture import GPT, GPTConfig  # noqa: E402
 from model.tokenizer import CharTokenizer  # noqa: E402
 
 from app.generation.base_model import ModelBackend  # noqa: E402
+from app.generation.online_trainer import OnlineTrainer  # noqa: E402
 
 _DEFAULT_RUN_DIR = _MODEL_ROOT / "training" / "runs" / "v0"
 
@@ -55,12 +63,28 @@ class LocalTransformerBackend(ModelBackend):
         self._model.eval()
         self._max_new_tokens = max_new_tokens
 
+        # generate() and OnlineTrainer's bursts both mutate/read the same
+        # nn.Module (including its train()/eval() mode flag, which is not
+        # thread-local) -- this lock serializes the two. See
+        # online_trainer.py's module docstring.
+        self._lock = threading.Lock()
+        self.online_trainer = OnlineTrainer(
+            model=self._model,
+            tokenizer=self._tokenizer,
+            device=self._device,
+            checkpoint_path=checkpoint_path,
+            lock=self._lock,
+            block_size=config.block_size,
+        )
+
     def generate(self, system_prompt: str, message: str) -> str:
         del system_prompt  # not used -- see module docstring
 
         prompt = f"Child: {message}\nRosey:"
         idx = torch.tensor([self._tokenizer.encode(prompt)], dtype=torch.long, device=self._device)
-        out = self._model.generate(idx, max_new_tokens=self._max_new_tokens, temperature=0.8, top_k=40)
+        with self._lock:
+            self._model.eval()
+            out = self._model.generate(idx, max_new_tokens=self._max_new_tokens, temperature=0.8, top_k=40)
         full_text = self._tokenizer.decode(out[0].tolist())
 
         completion = full_text[len(prompt):]

@@ -134,6 +134,27 @@ detectors rather than trusting the fictional wrapper. The response stays
 in-persona and warm (`redirect_engine.py::JAILBREAK` template) — never a
 robotic "I detected an attempt to manipulate me."
 
+## Output-side check
+
+Everything above evaluates the *child's* message. That leaves a gap: a
+small, not-instruction-tuned model can produce an unsafe-sounding fragment
+on a completely benign input, with no upstream signal to catch it — observed
+directly during dev testing of `local_model.py` (see `training/README.md`).
+So the ALLOW path runs the same `GuardrailPipeline.evaluate()` a second time,
+on the model's generated reply, before it's shown (`main.py::chat()`). If
+that second pass isn't clean, the raw generation is discarded and replaced
+with a generic, low-friction fallback (`redirect_engine.py::build_generation_safety_fallback`)
+— deliberately not one of the child-facing redirect templates above, since
+those are written as a response to something the child said, and here the
+child didn't say anything risky. The response is still reported as
+`REDIRECT` rather than `ALLOW`, so this stays distinguishable from a clean
+turn in the API contract and the dev UI's action badge, not silently
+absorbed into a success case.
+
+This check only fires on the ALLOW path — REDIRECT/ESCALATE replies come
+from fixed templates already, never from the model, so there's nothing
+generative to re-check there.
+
 ## Escalation and the human review queue
 
 `backend/app/review_queue.py` appends ESCALATE events to an append-only log

@@ -5,6 +5,7 @@ __pycache__/
 backend/data/
 training/data/prepared/
 training/data/corpus/combined.txt
+training/data/corpus/live_interactions.jsonl
 training/runs/
 .env
 *.egg-info/

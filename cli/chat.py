@@ -18,7 +18,7 @@ from app.generation.base_model import DEFAULT_BACKEND  # noqa: E402
 from app.guardrails.pipeline import DEFAULT_PIPELINE  # noqa: E402
 from app.models.schemas import Action, ChildProfile  # noqa: E402
 from app.persona.persona_engine import build_system_prompt  # noqa: E402
-from app.response.redirect_engine import build_redirect  # noqa: E402
+from app.response.redirect_engine import build_generation_safety_fallback, build_redirect  # noqa: E402
 from app.review_queue import DEFAULT_QUEUE  # noqa: E402
 
 _ACTION_LABEL = {
@@ -61,6 +61,17 @@ def main() -> None:
         if result.action == Action.ALLOW:
             system_prompt = build_system_prompt(child)
             reply = DEFAULT_BACKEND.generate(system_prompt, message)
+
+            # output-side check -- see main.py's chat() for why this exists
+            output_check = DEFAULT_PIPELINE.evaluate(reply)
+            if output_check.action != Action.ALLOW:
+                if args.verbose:
+                    print(f"  [output flagged: {output_check.top_category}] replacing with fallback")
+                reply = build_generation_safety_fallback(child.age_tier)
+
+            online_trainer = getattr(DEFAULT_BACKEND, "online_trainer", None)
+            if online_trainer is not None:
+                online_trainer.log_interaction(message, reply)
         else:
             reply = build_redirect(result.top_category, child.age_tier)
             if result.action == Action.ESCALATE:

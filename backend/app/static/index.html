@@ -1,0 +1,372 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Rosey — SafeAI for Kids (dev preview)</title>
+<style>
+  :root {
+    --bg: #f4f1ea;
+    --panel: #ffffff;
+    --text: #2a2622;
+    --text-dim: #736b60;
+    --border: #e6ddd0;
+    --accent: #d9714e;
+    --accent-soft: #f6ded3;
+    --child-bubble: #3d6b6b;
+    --child-bubble-text: #ffffff;
+    --rosey-bubble: #fff9f0;
+    --rosey-bubble-text: #2a2622;
+    --allow: #4b9b6e;
+    --redirect: #d99a3d;
+    --escalate: #c65b4f;
+    --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1c1a17;
+      --panel: #262320;
+      --text: #f1ece3;
+      --text-dim: #a89e90;
+      --border: #3a352e;
+      --accent: #e8875f;
+      --accent-soft: #3d2c24;
+      --child-bubble: #4d8080;
+      --child-bubble-text: #f1ece3;
+      --rosey-bubble: #322c25;
+      --rosey-bubble-text: #f1ece3;
+      --allow: #6ac28d;
+      --redirect: #e3ab5c;
+      --escalate: #e07869;
+      --shadow: 0 1px 3px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.2);
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; overflow-x: hidden; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 20px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .brand .avatar {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: var(--accent-soft); color: var(--accent);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; flex-shrink: 0;
+  }
+  .brand h1 { font-size: 16px; margin: 0; }
+  .brand .subtitle { font-size: 12px; color: var(--text-dim); margin: 0; }
+
+  .controls { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .controls label { font-size: 12px; color: var(--text-dim); display: flex; align-items: center; gap: 6px; }
+  .controls input[type="text"], .controls select {
+    font: inherit; font-size: 13px; padding: 5px 8px; border-radius: 8px;
+    border: 1px solid var(--border); background: var(--bg); color: var(--text);
+  }
+  .controls input[type="range"] { width: 90px; }
+
+  #training-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12px; padding: 5px 10px; border-radius: 999px;
+    background: var(--accent-soft); color: var(--accent); border: 1px solid transparent;
+    white-space: nowrap;
+  }
+  #training-pill.active { animation: pulse 1.2s ease-in-out infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+
+  main {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    display: flex;
+    justify-content: center;
+  }
+  #thread {
+    width: 100%;
+    max-width: 720px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .row { display: flex; }
+  .row.child { justify-content: flex-end; }
+  .row.rosey { justify-content: flex-start; }
+
+  .bubble {
+    max-width: 78%;
+    padding: 11px 15px;
+    border-radius: 16px;
+    line-height: 1.45;
+    font-size: 14.5px;
+    box-shadow: var(--shadow);
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+  .row.child .bubble {
+    background: var(--child-bubble);
+    color: var(--child-bubble-text);
+    border-bottom-right-radius: 4px;
+  }
+  .row.rosey .bubble {
+    background: var(--rosey-bubble);
+    color: var(--rosey-bubble-text);
+    border-bottom-left-radius: 4px;
+    border-left: 3px solid var(--allow);
+  }
+  .row.rosey .bubble.action-REDIRECT { border-left-color: var(--redirect); }
+  .row.rosey .bubble.action-ESCALATE { border-left-color: var(--escalate); }
+
+  .meta {
+    font-size: 10.5px;
+    color: var(--text-dim);
+    margin-top: 4px;
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+  .meta .tag {
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    font-weight: 600;
+  }
+  .tag.ALLOW { color: var(--allow); }
+  .tag.REDIRECT { color: var(--redirect); }
+  .tag.ESCALATE { color: var(--escalate); }
+
+  .typing .bubble { display: flex; gap: 4px; align-items: center; padding: 13px 15px; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text-dim); animation: bounce 1.1s infinite; }
+  .dot:nth-child(2) { animation-delay: 0.15s; }
+  .dot:nth-child(3) { animation-delay: 0.3s; }
+  @keyframes bounce { 0%, 60%, 100% { transform: translateY(0); opacity: 0.5; } 30% { transform: translateY(-4px); opacity: 1; } }
+
+  footer {
+    padding: 14px 20px 20px;
+    background: var(--panel);
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: center;
+  }
+  #composer {
+    width: 100%;
+    max-width: 720px;
+    display: flex;
+    gap: 10px;
+  }
+  #composer input {
+    flex: 1;
+    font: inherit;
+    font-size: 14.5px;
+    padding: 12px 16px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+  }
+  #composer input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  #composer button {
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 0 20px;
+    border-radius: 12px;
+    border: none;
+    background: var(--accent);
+    color: #fff;
+    cursor: pointer;
+  }
+  #composer button:disabled { opacity: 0.5; cursor: default; }
+
+  .empty-state {
+    color: var(--text-dim);
+    font-size: 13px;
+    text-align: center;
+    margin-top: 40px;
+    line-height: 1.6;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="avatar">🌱</div>
+    <div>
+      <h1 id="persona-title">Rosey</h1>
+      <p class="subtitle">SafeAI for Kids — dev preview, not the real product UI</p>
+    </div>
+  </div>
+  <div class="controls">
+    <label>name <input id="persona-name" type="text" value="Rosey" size="8" /></label>
+    <label>age <input id="age" type="range" min="7" max="15" value="11" />&nbsp;<span id="age-val">11</span></label>
+    <span id="training-pill">💤 idle</span>
+  </div>
+</header>
+
+<main>
+  <div id="thread">
+    <div class="empty-state">
+      Say hi, ask a homework question, or try something the guardrail pipeline should catch.<br>
+      Every ALLOW-path reply here trains the local model a little as you go — watch the pill above.
+    </div>
+  </div>
+</main>
+
+<footer>
+  <form id="composer">
+    <input id="input" type="text" autocomplete="off" placeholder="Type a message…" />
+    <button type="submit">Send</button>
+  </form>
+</footer>
+
+<script>
+  const thread = document.getElementById("thread");
+  const form = document.getElementById("composer");
+  const input = document.getElementById("input");
+  const ageSlider = document.getElementById("age");
+  const ageVal = document.getElementById("age-val");
+  const nameInput = document.getElementById("persona-name");
+  const personaTitle = document.getElementById("persona-title");
+  const trainingPill = document.getElementById("training-pill");
+
+  const childId = "web-dev-" + Math.random().toString(36).slice(2, 10);
+
+  ageSlider.addEventListener("input", () => { ageVal.textContent = ageSlider.value; });
+  nameInput.addEventListener("input", () => { personaTitle.textContent = nameInput.value || "Rosey"; });
+
+  function scrollToBottom() {
+    thread.scrollTop = thread.scrollHeight;
+    window.scrollTo(0, document.body.scrollHeight);
+  }
+
+  function clearEmptyState() {
+    const empty = thread.querySelector(".empty-state");
+    if (empty) empty.remove();
+  }
+
+  function addBubble(role, text, action) {
+    clearEmptyState();
+    const row = document.createElement("div");
+    row.className = "row " + role;
+
+    const bubble = document.createElement("div");
+    bubble.className = "bubble" + (action ? " action-" + action : "");
+    bubble.textContent = text;
+    row.appendChild(bubble);
+
+    if (role === "rosey" && action) {
+      const meta = document.createElement("div");
+      meta.className = "meta";
+      meta.innerHTML = `<span class="tag ${action}">${action}</span>`;
+      const wrap = document.createElement("div");
+      wrap.appendChild(row);
+      wrap.appendChild(meta);
+      thread.appendChild(wrap);
+    } else {
+      thread.appendChild(row);
+    }
+    scrollToBottom();
+    return row;
+  }
+
+  function addTyping() {
+    clearEmptyState();
+    const row = document.createElement("div");
+    row.className = "row rosey typing";
+    row.id = "typing-indicator";
+    row.innerHTML = `<div class="bubble"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>`;
+    thread.appendChild(row);
+    scrollToBottom();
+  }
+
+  function removeTyping() {
+    const el = document.getElementById("typing-indicator");
+    if (el) el.remove();
+  }
+
+  async function sendMessage(message) {
+    addBubble("child", message, null);
+    addTyping();
+    input.disabled = true;
+
+    try {
+      const res = await fetch("/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          child: {
+            child_id: childId,
+            age: parseInt(ageSlider.value, 10),
+            persona_name: nameInput.value || "Rosey",
+            persona_traits: ["curious", "warm", "encouraging"],
+          },
+          message: message,
+        }),
+      });
+      const data = await res.json();
+      removeTyping();
+      addBubble("rosey", data.reply, data.action);
+    } catch (err) {
+      removeTyping();
+      addBubble("rosey", "(couldn't reach the server -- is uvicorn still running?)", null);
+    } finally {
+      input.disabled = false;
+      input.focus();
+    }
+  }
+
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const message = input.value.trim();
+    if (!message) return;
+    input.value = "";
+    sendMessage(message);
+  });
+
+  async function pollTrainingStatus() {
+    try {
+      const res = await fetch("/training-status");
+      const data = await res.json();
+      if (!data.online_learning_active) {
+        trainingPill.textContent = "💤 no local model loaded";
+        trainingPill.classList.remove("active");
+        return;
+      }
+      if (data.is_training) {
+        trainingPill.textContent = "🧠 learning from this conversation…";
+        trainingPill.classList.add("active");
+      } else {
+        const bursts = data.total_bursts || 0;
+        trainingPill.textContent = bursts > 0
+          ? `🌱 trained ${bursts}x this session (${data.pending}/${data.interactions_per_burst} until next)`
+          : `💤 idle (${data.pending}/${data.interactions_per_burst} until first training burst)`;
+        trainingPill.classList.remove("active");
+      }
+    } catch (err) {
+      trainingPill.textContent = "⚠ status unavailable";
+      trainingPill.classList.remove("active");
+    }
+  }
+
+  pollTrainingStatus();
+  setInterval(pollTrainingStatus, 2500);
+  input.focus();
+</script>
+
+</body>
+</html>

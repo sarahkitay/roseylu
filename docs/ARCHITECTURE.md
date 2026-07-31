@@ -35,8 +35,10 @@ safeai-kids/
       generation/
         base_model.py           pluggable model backend interface + stub fallback
         local_model.py          loads the from-scratch checkpoint, runs generation
+        online_trainer.py       short live training bursts on conversation, replay-buffered
       review_queue.py           append-only escalation log (no raw text)
-      main.py                   FastAPI app: POST /chat
+      main.py                   FastAPI app: POST /chat, GET / (chat UI), GET /training-status
+      static/index.html         styled single-page chat UI, no build step
     tests/                      pytest suite against the seed dataset
     requirements.txt
   cli/
@@ -64,8 +66,20 @@ child message + child_profile
         ▼
 GuardrailPipeline.evaluate()  ── runs keyword / semantic / judge layers in parallel
         │
-        ├─ Action.ALLOW ────────────► ModelBackend.generate() ──► response
-        │                              (persona + age-tier system prompt)
+        ├─ Action.ALLOW ────────────► ModelBackend.generate() ──► GuardrailPipeline.evaluate() again, on the OUTPUT
+        │                              (persona + age-tier system prompt)         │
+        │                                                    ┌────────────────────┴───────────────────┐
+        │                                                 clean                                 flagged
+        │                                                    │                                         │
+        │                                                    ▼                                         ▼
+        │                                                 response                     generic fallback response
+        │                                                    │                        (reported as REDIRECT, not ALLOW)
+        │                                                    ▼
+        │                                     OnlineTrainer.log_interaction()  (background task, after response sent)
+        │                                                    │
+        │                                     every few interactions: short training burst,
+        │                                     replay-buffered against the original corpus,
+        │                                     overwrites training/runs/v0/checkpoint.pt
         │
         ├─ Action.REDIRECT ─────────► RedirectEngine.build_redirect() ──► response
         │
@@ -74,7 +88,16 @@ GuardrailPipeline.evaluate()  ── runs keyword / semantic / judge layers in p
 ```
 
 The child always gets a response in the same turn — ESCALATE never blocks or
-delays the reply; it only adds a queue entry for specialist review.
+delays the reply; it only adds a queue entry for specialist review. The
+output-side re-check exists because a small, not-instruction-tuned model can
+hallucinate an unsafe-sounding fragment on a completely benign input — the
+input-side check alone doesn't catch that, since the child's message was
+fine. Observed directly during dev testing; see `training/README.md`.
+Online-learning bursts never run on the request-handling thread (they're
+dispatched as a `BackgroundTasks` job after the HTTP response is already
+sent), and they always log the *shown* reply (the fallback, if the output
+check fired) rather than a flagged raw generation, so a burst can't
+reinforce something that just got caught.
 
 ## Target production architecture (not built yet)
 

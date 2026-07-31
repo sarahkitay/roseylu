@@ -40,14 +40,14 @@ python3 training/scripts/train_from_scratch.py --max-iters 3000
 # talk to it directly, no server needed
 python3 cli/chat.py --age 11 --name Rosey --verbose
 
-# or run the API
-uvicorn app.main:app --app-dir backend --reload
+# or run the API + styled chat UI, then open http://localhost:8000
+cd backend && uvicorn app.main:app --reload
 
-# run the test suite
-cd backend && python -m pytest -q
+# run the test suite (from backend/)
+python -m pytest -q
 
 # calibrate the guardrail pipeline against the seed dataset
-python3 training/scripts/evaluate.py
+python3 ../training/scripts/evaluate.py
 ```
 
 No API key of any kind is used anywhere in this repo. The guardrail
@@ -58,14 +58,29 @@ ALLOW-path generation backend falls back to a clearly-labeled stub
 system stays fully testable; once `training/runs/v0/checkpoint.pt` exists,
 `LocalTransformerBackend` picks it up automatically.
 
+## The chat UI trains the model as you use it
+
+`http://localhost:8000/` serves a styled chat page (`backend/app/static/index.html`)
+with a status pill showing the online-learning state. Every ALLOW-path
+exchange (the guardrail pipeline let the child's message through, and the
+model's own reply also passed an output-side check -- see
+`docs/SAFETY_MODEL.md`) gets logged, and every few exchanges the model takes
+a short real training burst on the live conversation, mixed with a replay
+sample of the original corpus so it doesn't just forget everything else.
+This updates the actual checkpoint on disk (`training/runs/v0/checkpoint.pt`)
+-- it's genuine continual training, not a canned response cache. See
+`backend/app/generation/online_trainer.py` for how and why (short bursts,
+low learning rate, replay buffer) it's built to not go off the rails on one
+weird exchange.
+
 ## Repo layout
 
 ```
 docs/       product spec, safety model, compliance, blockers
 model/      from-scratch transformer architecture + tokenizer (no pretrained weights)
-backend/    guardrail pipeline, persona/redirect engines, FastAPI app, tests
+backend/    guardrail pipeline, persona/redirect engines, FastAPI app + static chat UI, tests
 cli/        interactive terminal chat against the pipeline
-training/   corpus assembly, from-scratch training loop, seed dataset (draft), evaluator
+training/   corpus assembly, from-scratch training loop, online learning, seed dataset (draft), evaluator
 ```
 
 See `docs/ARCHITECTURE.md` for the full breakdown and request flow.
