@@ -12,6 +12,7 @@ from fastapi.responses import HTMLResponse
 
 from app.generation.base_model import DEFAULT_BACKEND
 from app.guardrails.pipeline import DEFAULT_PIPELINE
+from app.illustration import topic_classifier
 from app.models.schemas import Action, ChatRequest, ChatResponse
 from app.persona.persona_engine import build_system_prompt
 from app.response.redirect_engine import build_generation_safety_fallback, build_redirect
@@ -63,6 +64,8 @@ def chat(req: ChatRequest, background_tasks: BackgroundTasks) -> ChatResponse:
         output_check = DEFAULT_PIPELINE.evaluate(reply)
         response_action = result.action
         response_category = None
+        topic = None
+        topic_numbers: list[int] = []
         if output_check.action != Action.ALLOW:
             reply = build_generation_safety_fallback(req.child.age_tier)
             # Report this honestly as a REDIRECT, not ALLOW -- the child's
@@ -71,6 +74,16 @@ def chat(req: ChatRequest, background_tasks: BackgroundTasks) -> ChatResponse:
             # should be able to tell the difference from a clean ALLOW turn.
             response_action = Action.REDIRECT
             response_category = output_check.top_category
+        else:
+            # Illustration topic is classified from the CHILD's question,
+            # not the model's reply -- the reply is often too unreliable at
+            # this model scale to classify against (see training/README.md),
+            # but "what is the child asking about" is a much easier, more
+            # robust signal. Only computed on a clean reply -- no cartoon
+            # scene accompanies a safety fallback.
+            topic = topic_classifier.classify(req.message)
+            if topic:
+                topic_numbers = topic_classifier.extract_numbers(req.message, topic)
 
         # Online learning: only ALLOW-path exchanges feed the live model --
         # REDIRECT/ESCALATE replies (from either check above) come from
@@ -84,7 +97,13 @@ def chat(req: ChatRequest, background_tasks: BackgroundTasks) -> ChatResponse:
         if online_trainer is not None:
             background_tasks.add_task(online_trainer.log_interaction, req.message, reply)
 
-        return ChatResponse(reply=reply, action=response_action, top_category=response_category)
+        return ChatResponse(
+            reply=reply,
+            action=response_action,
+            top_category=response_category,
+            topic=topic,
+            topic_numbers=topic_numbers,
+        )
 
     # REDIRECT and ESCALATE both produce the same kind of reply to the child;
     # ESCALATE additionally logs to the review queue. See docs/SAFETY_MODEL.md.

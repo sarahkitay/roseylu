@@ -73,3 +73,7 @@ class ChatResponse(BaseModel):
     reply: str
     action: Action
     top_category: Optional[RiskCategory] = None
+    # Non-safety-relevant: which cartoon illustration the dev UI should show
+    # alongside the reply, if any. See app/illustration/topic_classifier.py.
+    topic: Optional[str] = None
+    topic_numbers: list[int] = Field(default_factory=list)

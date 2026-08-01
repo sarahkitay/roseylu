@@ -58,6 +58,32 @@ ALLOW-path generation backend falls back to a clearly-labeled stub
 system stays fully testable; once `training/runs/v0/checkpoint.pt` exists,
 `LocalTransformerBackend` picks it up automatically.
 
+## Design your own character
+
+Click the avatar (or "🎨 Customize your character") to open the designer:
+pick a body shape, color, eyes, mouth, and an accessory, name it, and it's
+who responds to every message from then on. Saved to `localStorage`, so it
+persists across page reloads and can be changed anytime. The character
+actually animates while it talks -- mouth flaps in sync with the reply text
+being typed out, idle blink/bounce the rest of the time -- built entirely
+from hand-composed SVG (`backend/app/static/index.html`), no image
+generation model involved, consistent with the "no third-party API, and no
+heavy model dependency beyond the one this app trains" rule elsewhere in
+this repo.
+
+## Topic illustrations
+
+Ask a question that matches a known topic (addition, subtraction,
+multiplication, fractions, shapes, science, animals, reading) and a small
+cartoon scene renders alongside the reply -- e.g. addition shows pennies
+being counted out and added up. Classified server-side
+(`backend/app/illustration/topic_classifier.py`, a small keyword matcher
+with zero safety weight -- see its docstring) from the *child's question*,
+not the model's reply, since the reply is often unreliable at this model
+scale (see below) but "what is the child asking about" is a much easier
+signal. Illustrations are pre-built SVG scenes, not generated images -- same
+reasoning as the character avatars.
+
 ## The chat UI trains the model as you use it
 
 `http://localhost:8000/` serves a styled chat page (`backend/app/static/index.html`)
