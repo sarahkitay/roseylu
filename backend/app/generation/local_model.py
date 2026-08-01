@@ -3,8 +3,10 @@ trained locally by training/scripts/train_from_scratch.py. No external API,
 no pretrained weights -- this loads a checkpoint of weights trained on this
 machine from random initialization.
 
-The trained model is small and character-level (see model/tokenizer.py) --
-it was NOT instruction-tuned and doesn't meaningfully use `system_prompt`
+The trained model is small (see model/tokenizer.py for which tokenizer it
+was trained with -- char-level or the from-scratch BPE tokenizer, loaded
+generically via `load_tokenizer` so this file doesn't need to know or care
+which) -- it was NOT instruction-tuned and doesn't meaningfully use `system_prompt`
 the way an API-backed chat model would. It was trained on "Child: ... /
 Rosey: ..." formatted dialogue (training/data/synthetic_dialogues.py +
 rendered redirect templates + public-domain literature for general fluency),
@@ -32,7 +34,7 @@ if str(_MODEL_ROOT) not in sys.path:
     sys.path.insert(0, str(_MODEL_ROOT))
 
 from model.architecture import GPT, GPTConfig  # noqa: E402
-from model.tokenizer import CharTokenizer  # noqa: E402
+from model.tokenizer import load_tokenizer  # noqa: E402
 
 from app.generation.base_model import ModelBackend  # noqa: E402
 from app.generation.online_trainer import OnlineTrainer  # noqa: E402
@@ -54,7 +56,7 @@ class LocalTransformerBackend(ModelBackend):
             )
 
         self._device = torch.device("mps") if torch.backends.mps.is_available() else torch.device("cpu")
-        self._tokenizer = CharTokenizer.load(tokenizer_path)
+        self._tokenizer = load_tokenizer(tokenizer_path)
 
         checkpoint = torch.load(checkpoint_path, map_location=self._device)
         config = GPTConfig(**checkpoint["config"])

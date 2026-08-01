@@ -22,10 +22,21 @@ import torch
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from model.architecture import GPT, GPTConfig  # noqa: E402
-from model.tokenizer import CharTokenizer  # noqa: E402
+from model.tokenizer import BPETokenizer, CharTokenizer, load_tokenizer  # noqa: E402
 
 _DEFAULT_CORPUS = Path(__file__).parent.parent / "data" / "corpus" / "combined.txt"
 _DEFAULT_OUT = Path(__file__).parent.parent / "runs" / "v0"
+
+# Sampled at every --sample-every checkpoint so training progress is judged
+# against more than one fixed prompt -- a single benchmark prompt can look
+# fine by luck while the model is actually degrading elsewhere (this is
+# exactly what happened in the run that motivated adding this: the fixed
+# "why is the sky blue" sample briefly looked fine at one checkpoint by
+# chance, while overall quality was already declining).
+_SAMPLE_PROMPTS = [
+    "Child: why is the sky blue\nRosey:",
+    "Child: how do i do addition for class\nRosey:",
+]
 
 
 def get_device() -> torch.device:
@@ -70,6 +81,8 @@ def main() -> None:
     parser.add_argument("--corpus", type=Path, default=_DEFAULT_CORPUS)
     parser.add_argument("--out-dir", type=Path, default=_DEFAULT_OUT)
     parser.add_argument("--resume", type=Path, default=None)
+    parser.add_argument("--tokenizer", choices=["char", "bpe"], default="bpe")
+    parser.add_argument("--vocab-size", type=int, default=640, help="BPE only -- total vocab size including base chars")
     parser.add_argument("--block-size", type=int, default=256)
     parser.add_argument("--n-layer", type=int, default=6)
     parser.add_argument("--n-head", type=int, default=6)
@@ -90,14 +103,24 @@ def main() -> None:
     args.out_dir.mkdir(parents=True, exist_ok=True)
     tokenizer_path = args.out_dir / "tokenizer.json"
 
+    ids = None
     if args.resume and tokenizer_path.exists():
-        tokenizer = CharTokenizer.load(tokenizer_path)
+        tokenizer = load_tokenizer(tokenizer_path)
+        print(f"loaded existing {tokenizer.kind} tokenizer from {tokenizer_path}")
+    elif args.tokenizer == "bpe":
+        print(f"training a BPE tokenizer (target vocab_size={args.vocab_size})...")
+        t_bpe = time.time()
+        tokenizer, ids = BPETokenizer.train(text, vocab_size=args.vocab_size, log=print)
+        print(f"BPE training done in {time.time() - t_bpe:.0f}s")
+        tokenizer.save(tokenizer_path)
     else:
         tokenizer = CharTokenizer.from_corpus(text)
         tokenizer.save(tokenizer_path)
     print(f"vocab_size: {tokenizer.vocab_size}")
 
-    data = torch.tensor(tokenizer.encode(text), dtype=torch.long)
+    if ids is None:
+        ids = tokenizer.encode(text)
+    data = torch.tensor(ids, dtype=torch.long)
     split_idx = int(0.9 * len(data))
     train_data, val_data = data[:split_idx], data[split_idx:]
     print(f"corpus: {len(data):,} tokens ({len(train_data):,} train / {len(val_data):,} val)")
@@ -144,8 +167,25 @@ def main() -> None:
             )
 
         if it % args.sample_every == 0 and it > start_iter:
-            preview = sample(model, tokenizer, device)
-            print(f"--- sample @ iter {it} ---\n{preview}\n---")
+            for test_prompt in _SAMPLE_PROMPTS:
+                preview = sample(model, tokenizer, device, prompt=test_prompt)
+                print(f"--- sample @ iter {it} ({test_prompt!r}) ---\n{preview}\n---")
+
+            # Save a NAMED snapshot alongside the rolling checkpoint.pt --
+            # the qualitatively best iteration doesn't reliably line up with
+            # the lowest loss (val_loss is an unreliable proxy here, due to
+            # the duplicated-dialogue train/val leakage -- see
+            # training/README.md), and training past the best point degrades
+            # output quality again. Without these, the only way to recover
+            # an earlier "actually good" state is to re-run training from
+            # scratch and hope to land on the same point -- exactly the
+            # problem this snapshot mechanism exists to avoid.
+            snapshot_dir = args.out_dir / "snapshots"
+            snapshot_dir.mkdir(parents=True, exist_ok=True)
+            torch.save(
+                {"model_state_dict": model.state_dict(), "config": asdict(config), "iter": it},
+                snapshot_dir / f"checkpoint_iter{it}.pt",
+            )
 
     torch.save(
         {"model_state_dict": model.state_dict(), "config": asdict(config), "iter": start_iter + args.max_iters},

@@ -41,17 +41,25 @@ of engineering polish substitutes for them.
 
 ## Capability gap (not a safety blocker, but don't oversell it)
 
-8. **The from-scratch model is not conversationally competent yet.** It's a
-   real, working training pipeline -- see `training/README.md` -- but a
-   ~10M-parameter character-level model trained on a ~600K-character corpus
-   is a proof of concept, not an assistant. This doesn't block the safety
-   architecture (the guardrail pipeline gates output regardless of
-   generation quality) but it does block a real product launch on its own
-   terms: closing it needs either substantially more training data/compute
-   at the same from-scratch approach, or falling back to fine-tuning a
-   larger open-source pretrained model (`training/scripts/finetune_lora.py`)
-   -- both documented as options in `training/README.md`, neither involving
-   a third-party hosted API.
+8. **The from-scratch model is not conversationally competent yet, and
+   quality is inconsistent even within what it's tuned for.** It's a real,
+   working training pipeline -- see `training/README.md` for the full
+   story, including a real mistake (an over-trained BPE run that had a
+   much lower loss and much worse actual output than the model it was
+   meant to improve on) worth reading before trusting a loss number here.
+   The corrected version shows genuine improvement on math paraphrase
+   retrieval specifically, but not uniformly: even a training example
+   reproduced perfectly by the previous version isn't reliably reproduced
+   now, non-math topics still drift into literary pastiche, and two
+   identically-configured training runs land on different specific
+   strengths due to random-seed variance at this scale. This doesn't block
+   the safety architecture (the guardrail pipeline gates output regardless
+   of generation quality) but it does block a real product launch on its
+   own terms: closing it needs either substantially more training
+   data/compute at the same from-scratch approach, or falling back to
+   fine-tuning a larger open-source pretrained model
+   (`training/scripts/finetune_lora.py`) -- both documented as options in
+   `training/README.md`, neither involving a third-party hosted API.
 
 ## A new consideration from adding online learning
 
