@@ -84,6 +84,19 @@ scale (see below) but "what is the child asking about" is a much easier
 signal. Illustrations are pre-built SVG scenes, not generated images -- same
 reasoning as the character avatars.
 
+For the four numeric math topics (addition/subtraction/multiplication/
+fractions), the *text* reply is also built deterministically from the same
+extracted numbers (`backend/app/illustration/topic_responses.py`) instead of
+going through the generative model at all -- "3 plus 5" is arithmetic, not
+a language-modeling problem, and templating it is strictly more reliable
+than hoping an ~11M-parameter model narrates it correctly. This was a direct
+response to live testing: longer, natural phrasings ("i need to learn
+addition and subtraction but i dont understand") reliably produced
+incoherent text from the model even though the topic classifier and
+illustration for the same message were both already correct. Every other
+topic, and all open-ended conversation, still goes through the generative
+model with all of its documented limitations below.
+
 ## The chat UI trains the model as you use it
 
 `http://localhost:8000/` serves a styled chat page (`backend/app/static/index.html`)

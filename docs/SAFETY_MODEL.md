@@ -68,6 +68,19 @@ to agree.
    hosted embeddings API) is a one-file change, not a rewrite. Don't mistake
    the stand-in for the real thing when reasoning about recall.
 
+   Found live during dev testing: with such short canonical reference
+   phrases, cosine similarity is easy to fool with shared sentence
+   scaffolding alone — "can you explain fractions to me" scored 0.45
+   against "can you send me a photo of yourself" with zero shared content
+   words. `stop_words="english"` on the vectorizer and a raised match
+   threshold (`config.py::SEMANTIC_MATCH_THRESHOLD`) cut this down, but
+   don't treat it as solved — it's a structural limitation of TF-IDF on a
+   tiny reference corpus, not a bug with a clean fix. This is also why the
+   raw match threshold and the tier-2 combined-score threshold
+   (`TIER2_REDIRECT_THRESHOLD`) are two separate constants on two different
+   scales, not one — see `config.py`'s comments for a real bug that came
+   from conflating them.
+
 3. **`llm_judge.py`** — nuanced judgment call for anything ambiguous. Same
    story: the default `JudgeBackend` is a heuristic (checks combinations the
    first two layers see individually but might not combine — e.g. secrecy

@@ -12,7 +12,7 @@ from fastapi.responses import HTMLResponse
 
 from app.generation.base_model import DEFAULT_BACKEND
 from app.guardrails.pipeline import DEFAULT_PIPELINE
-from app.illustration import topic_classifier
+from app.illustration import topic_classifier, topic_responses
 from app.models.schemas import Action, ChatRequest, ChatResponse
 from app.persona.persona_engine import build_system_prompt
 from app.response.redirect_engine import build_generation_safety_fallback, build_redirect
@@ -52,20 +52,36 @@ def chat(req: ChatRequest, background_tasks: BackgroundTasks) -> ChatResponse:
     result = DEFAULT_PIPELINE.evaluate(req.message)
 
     if result.action == Action.ALLOW:
-        system_prompt = build_system_prompt(req.child)
-        reply = DEFAULT_BACKEND.generate(system_prompt, req.message)
+        # Topic is classified from the CHILD's question, before generation,
+        # for two reasons: the illustration needs it regardless, and for the
+        # handful of numeric math topics it lets us skip the generative
+        # model entirely in favor of a deterministic, correct answer -- see
+        # app/illustration/topic_responses.py for why that's the right
+        # tradeoff specifically for arithmetic (not a general fix for model
+        # quality). "What is the child asking about" is also a far more
+        # robust signal than classifying the model's own reply, which is
+        # often unreliable at this model's scale (see training/README.md).
+        topic = topic_classifier.classify(req.message)
+        topic_numbers = topic_classifier.extract_numbers(req.message, topic) if topic else []
+
+        templated = topic_responses.build_templated_answer(topic, topic_numbers) if topic else None
+        if templated is not None:
+            reply = templated
+        else:
+            system_prompt = build_system_prompt(req.child)
+            reply = DEFAULT_BACKEND.generate(system_prompt, req.message)
 
         # Output-side check: the guardrail pipeline above only evaluated the
         # CHILD's message. A small, not-instruction-tuned model can produce
         # an inappropriate-sounding fragment even on a completely benign
         # input (observed directly during dev testing -- see
         # training/README.md) -- there's no upstream signal to catch that,
-        # so the generated reply gets checked too before it's shown.
+        # so the generated reply gets checked too before it's shown. Runs
+        # on templated answers too, for uniformity -- cheap, and there's no
+        # good reason to special-case a bypass of a safety check.
         output_check = DEFAULT_PIPELINE.evaluate(reply)
         response_action = result.action
         response_category = None
-        topic = None
-        topic_numbers: list[int] = []
         if output_check.action != Action.ALLOW:
             reply = build_generation_safety_fallback(req.child.age_tier)
             # Report this honestly as a REDIRECT, not ALLOW -- the child's
@@ -74,16 +90,9 @@ def chat(req: ChatRequest, background_tasks: BackgroundTasks) -> ChatResponse:
             # should be able to tell the difference from a clean ALLOW turn.
             response_action = Action.REDIRECT
             response_category = output_check.top_category
-        else:
-            # Illustration topic is classified from the CHILD's question,
-            # not the model's reply -- the reply is often too unreliable at
-            # this model scale to classify against (see training/README.md),
-            # but "what is the child asking about" is a much easier, more
-            # robust signal. Only computed on a clean reply -- no cartoon
-            # scene accompanies a safety fallback.
-            topic = topic_classifier.classify(req.message)
-            if topic:
-                topic_numbers = topic_classifier.extract_numbers(req.message, topic)
+            # No cartoon scene accompanies a safety fallback.
+            topic = None
+            topic_numbers = []
 
         # Online learning: only ALLOW-path exchanges feed the live model --
         # REDIRECT/ESCALATE replies (from either check above) come from

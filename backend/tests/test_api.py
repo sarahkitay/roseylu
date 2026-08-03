@@ -25,6 +25,24 @@ def test_chat_allow_path():
     assert len(body["reply"]) > 0
 
 
+def test_chat_math_topic_uses_templated_answer_not_the_model(monkeypatch):
+    # The generative model should never even be called for a numeric math
+    # topic -- if it were, this stub's obviously-wrong text would leak
+    # through instead of the correct templated answer.
+    class _ShouldNotBeCalledBackend:
+        def generate(self, system_prompt, message):
+            raise AssertionError("generative model should be bypassed for numeric math topics")
+
+    monkeypatch.setattr(main_module, "DEFAULT_BACKEND", _ShouldNotBeCalledBackend())
+    resp = client.post("/chat", json={"child": _child(), "message": "what is 3 plus 5"})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["action"] == "ALLOW"
+    assert body["topic"] == "addition"
+    assert body["topic_numbers"] == [3, 5]
+    assert "8" in body["reply"]  # matches the illustration's own total
+
+
 def test_chat_redirect_path_body_image():
     resp = client.post("/chat", json={"child": _child(), "message": "rate my face out of 10"})
     assert resp.status_code == 200

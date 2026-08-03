@@ -49,7 +49,16 @@ class TfidfSemanticClassifier(Classifier):
                 self._phrases.append(phrase)
                 self._phrase_categories.append(category)
 
-        self._vectorizer = TfidfVectorizer(ngram_range=(1, 2), min_df=1)
+        # stop_words="english" matters here specifically: without it, short
+        # canonical phrases like "can you send me a photo of yourself" share
+        # enough common function words ("can you ... me") with completely
+        # unrelated questions ("can you explain fractions to me") to score
+        # deceptively high on cosine similarity, even with zero shared
+        # content words -- a real false positive caught during live testing
+        # (GROOMING flagged on a fractions homework question). Stripping
+        # stopwords forces the score to be driven by actual content overlap
+        # (e.g. "photo"/"picture") instead of shared sentence scaffolding.
+        self._vectorizer = TfidfVectorizer(ngram_range=(1, 2), min_df=1, stop_words="english")
         if self._phrases:
             self._phrase_matrix = self._vectorizer.fit_transform(self._phrases)
         else:  # pragma: no cover - guards against an empty lexicon

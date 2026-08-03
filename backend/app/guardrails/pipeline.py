@@ -7,7 +7,12 @@ threshold. ESCALATE is additive on top of REDIRECT, never a different reply.
 """
 from __future__ import annotations
 
-from app.config import ESCALATE_THRESHOLD, KEYWORD_SCORE, SEMANTIC_REDIRECT_THRESHOLD
+from app.config import (
+    ESCALATE_THRESHOLD,
+    KEYWORD_SCORE,
+    SEMANTIC_MATCH_THRESHOLD,
+    TIER2_REDIRECT_THRESHOLD,
+)
 from app.guardrails import keyword_filter
 from app.guardrails.embedding_classifier import DEFAULT_CLASSIFIER
 from app.guardrails.llm_judge import DEFAULT_JUDGE
@@ -47,7 +52,7 @@ class GuardrailPipeline:
                 evidence.extend(kw.evidence_for(category))
 
             sem_score = semantic.score_for(category)
-            if sem_score >= SEMANTIC_REDIRECT_THRESHOLD:
+            if sem_score >= SEMANTIC_MATCH_THRESHOLD:
                 combined += sem_score * _SEMANTIC_WEIGHT
                 layers.append("semantic")
                 evidence.extend(semantic.evidence_for(category))
@@ -96,7 +101,7 @@ class GuardrailPipeline:
         tier2_hits = {
             c: s
             for c, s in scores.items()
-            if c not in TIER1 and c != RiskCategory.JAILBREAK and s.score >= SEMANTIC_REDIRECT_THRESHOLD
+            if c not in TIER1 and c != RiskCategory.JAILBREAK and s.score >= TIER2_REDIRECT_THRESHOLD
         }
         if tier2_hits:
             top = max(tier2_hits.values(), key=lambda s: s.score)
