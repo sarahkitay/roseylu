@@ -97,6 +97,21 @@ illustration for the same message were both already correct. Every other
 topic, and all open-ended conversation, still goes through the generative
 model with all of its documented limitations below.
 
+## Curated History, English, and Math answers
+
+Beyond arithmetic, `backend/app/knowledge/curated_qa.py` is a hand-authored,
+keyword-matched lookup of ~40 common curriculum questions across History,
+English, and Math (e.g. "how did Christopher Columbus come to the
+Americas," "what is a synonym," "what is a decimal") -- checked before
+falling back to the generative model, same reasoning as the math templates:
+the local model has no reliable general knowledge at its current training
+scale, and open-ended factual questions produced fluent-looking nonsense
+during live testing. This is **original content Claude wrote directly, not
+text copied from any textbook** -- see that file's docstring for the full
+reasoning, including why sensitive topics (slavery, WWII) are included (they're
+standard elementary/middle-school curriculum) and treated carefully, and why
+this is a curated *starting set*, not a claim of exhaustive K-12 coverage.
+
 ## The chat UI trains the model as you use it
 
 `http://localhost:8000/` serves a styled chat page (`backend/app/static/index.html`)

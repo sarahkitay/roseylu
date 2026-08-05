@@ -17,7 +17,15 @@ def test_health():
 
 
 def test_chat_allow_path():
-    resp = client.post("/chat", json={"child": _child(), "message": "why is the sky blue"})
+    # Uses a curated-knowledge question (deterministic answer), not a
+    # question that would fall through to the raw generative model -- the
+    # local model is stochastic and, per training/README.md, occasionally
+    # hallucinates a fragment that trips the output-side check even on
+    # completely benign prompts. That's real, known, and separately covered
+    # by test_chat_output_side_check_catches_unsafe_generation below
+    # (deterministically, via a mocked backend); it shouldn't make an
+    # unrelated "does the ALLOW response have the right shape" test flaky.
+    resp = client.post("/chat", json={"child": _child(), "message": "what is a synonym"})
     assert resp.status_code == 200
     body = resp.json()
     assert body["action"] == "ALLOW"

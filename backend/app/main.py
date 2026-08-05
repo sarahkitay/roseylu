@@ -13,6 +13,7 @@ from fastapi.responses import HTMLResponse
 from app.generation.base_model import DEFAULT_BACKEND
 from app.guardrails.pipeline import DEFAULT_PIPELINE
 from app.illustration import topic_classifier, topic_responses
+from app.knowledge import curated_qa
 from app.models.schemas import Action, ChatRequest, ChatResponse
 from app.persona.persona_engine import build_system_prompt
 from app.response.redirect_engine import build_generation_safety_fallback, build_redirect
@@ -65,8 +66,17 @@ def chat(req: ChatRequest, background_tasks: BackgroundTasks) -> ChatResponse:
         topic_numbers = topic_classifier.extract_numbers(req.message, topic) if topic else []
 
         templated = topic_responses.build_templated_answer(topic, topic_numbers) if topic else None
+        curated = curated_qa.find_answer(req.message) if templated is None else None
         if templated is not None:
             reply = templated
+        elif curated is not None:
+            # Curated History/English/Math answers (app/knowledge/curated_qa.py)
+            # -- same reasoning as the math templates above, extended past
+            # pure arithmetic: the local model has no reliable general
+            # knowledge at this training scale (see training/README.md), so
+            # well-known curriculum topics get a hand-written, correct
+            # answer instead of a generated guess.
+            reply = curated
         else:
             system_prompt = build_system_prompt(req.child)
             reply = DEFAULT_BACKEND.generate(system_prompt, req.message)

@@ -38,6 +38,16 @@ of engineering polish substitutes for them.
 7. **Formal age-verification / parental consent flow.** The prototype's
    `ChildProfile` takes an age as a field; it does not implement verifiable
    parental consent, which is a COPPA requirement, not a nice-to-have.
+8. **Curriculum content needs educator/subject-matter review.**
+   `backend/app/knowledge/curated_qa.py` has ~40 hand-authored History,
+   English, and Math answers, including sensitive topics that are standard
+   curriculum but easy to get the framing wrong on (slavery and the Civil
+   War, WWII and the Holocaust, Columbus and Indigenous peoples). This was
+   written carefully, but by an engineer, not a history/curriculum
+   specialist -- the same category of gap as clinical review above, just
+   for factual/pedagogical accuracy and age-appropriate framing rather than
+   emotional safety. Treat it as a draft pending that review, same as
+   everything else touching sensitive content in this repo.
 
 ## Capability gap (not a safety blocker, but don't oversell it)
 

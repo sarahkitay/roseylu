@@ -16,6 +16,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "backend"))
 
 from app.generation.base_model import DEFAULT_BACKEND  # noqa: E402
 from app.guardrails.pipeline import DEFAULT_PIPELINE  # noqa: E402
+from app.illustration import topic_classifier, topic_responses  # noqa: E402
+from app.knowledge import curated_qa  # noqa: E402
 from app.models.schemas import Action, ChildProfile  # noqa: E402
 from app.persona.persona_engine import build_system_prompt  # noqa: E402
 from app.response.redirect_engine import build_generation_safety_fallback, build_redirect  # noqa: E402
@@ -59,8 +61,20 @@ def main() -> None:
                 print(f"    {s.category.value}: {s.score:.2f} via {s.matched_layers}")
 
         if result.action == Action.ALLOW:
-            system_prompt = build_system_prompt(child)
-            reply = DEFAULT_BACKEND.generate(system_prompt, message)
+            # templated math answers, then curated History/English/Math facts,
+            # then the generative model -- see main.py::chat() for why
+            topic = topic_classifier.classify(message)
+            topic_numbers = topic_classifier.extract_numbers(message, topic) if topic else []
+            templated = topic_responses.build_templated_answer(topic, topic_numbers) if topic else None
+            curated = curated_qa.find_answer(message) if templated is None else None
+
+            if templated is not None:
+                reply = templated
+            elif curated is not None:
+                reply = curated
+            else:
+                system_prompt = build_system_prompt(child)
+                reply = DEFAULT_BACKEND.generate(system_prompt, message)
 
             # output-side check -- see main.py's chat() for why this exists
             output_check = DEFAULT_PIPELINE.evaluate(reply)
