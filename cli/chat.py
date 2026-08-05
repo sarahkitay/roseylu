@@ -14,14 +14,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "backend"))
 
-from app.generation.base_model import DEFAULT_BACKEND  # noqa: E402
 from app.guardrails.pipeline import DEFAULT_PIPELINE  # noqa: E402
-from app.illustration import topic_classifier, topic_responses  # noqa: E402
-from app.knowledge import curated_qa  # noqa: E402
 from app.models.schemas import Action, ChildProfile  # noqa: E402
-from app.persona.persona_engine import build_system_prompt  # noqa: E402
-from app.response.redirect_engine import build_generation_safety_fallback, build_redirect  # noqa: E402
-from app.review_queue import DEFAULT_QUEUE  # noqa: E402
+from app.orchestrator import handle_chat_turn  # noqa: E402
 
 _ACTION_LABEL = {
     Action.ALLOW: "\033[92mALLOW\033[0m",
@@ -53,56 +48,23 @@ def main() -> None:
         if message.lower() in {"quit", "exit"}:
             break
 
-        result = DEFAULT_PIPELINE.evaluate(message)
-
         if args.verbose:
-            print(f"  [{_ACTION_LABEL[result.action]}] top_category={result.top_category}")
-            for s in result.scores:
+            # informational only -- handle_chat_turn re-evaluates internally;
+            # cheap and side-effect-free, so computing it twice here just to
+            # print scores isn't worth threading through the shared function.
+            preview = DEFAULT_PIPELINE.evaluate(message)
+            print(f"  [{_ACTION_LABEL[preview.action]}] top_category={preview.top_category}")
+            for s in preview.scores:
                 print(f"    {s.category.value}: {s.score:.2f} via {s.matched_layers}")
 
-        if result.action == Action.ALLOW:
-            # templated math answers, then curated History/English/Math facts,
-            # then the generative model -- see main.py::chat() for why
-            topic = topic_classifier.classify(message)
-            topic_numbers = topic_classifier.extract_numbers(message, topic) if topic else []
-            templated = topic_responses.build_templated_answer(topic, topic_numbers) if topic else None
-            curated = curated_qa.find_answer(message) if templated is None else None
+        response = handle_chat_turn(child, message)
 
-            if templated is not None:
-                reply = templated
-            elif curated is not None:
-                reply = curated
-            else:
-                system_prompt = build_system_prompt(child)
-                reply = DEFAULT_BACKEND.generate(system_prompt, message)
+        if args.verbose and response.action != Action.ALLOW:
+            print(f"  [{response.action.value}] top_category={response.top_category}")
+        if response.action == Action.ESCALATE:
+            print("  [logged to review queue]")
 
-            # output-side check -- see main.py's chat() for why this exists
-            output_check = DEFAULT_PIPELINE.evaluate(reply)
-            if output_check.action != Action.ALLOW:
-                if args.verbose:
-                    print(f"  [output flagged: {output_check.top_category}] replacing with fallback")
-                reply = build_generation_safety_fallback(child.age_tier)
-
-            online_trainer = getattr(DEFAULT_BACKEND, "online_trainer", None)
-            if online_trainer is not None:
-                online_trainer.log_interaction(message, reply)
-        else:
-            reply = build_redirect(result.top_category, child.age_tier)
-            if result.action == Action.ESCALATE:
-                top_score = result.score_for(result.top_category)
-                matched_layers = next(
-                    (s.matched_layers for s in result.scores if s.category == result.top_category),
-                    [],
-                )
-                DEFAULT_QUEUE.append(
-                    child_id=child.child_id,
-                    category=result.top_category,
-                    score=top_score,
-                    matched_layers=matched_layers,
-                )
-                print("  [logged to review queue]")
-
-        print(f"{args.name}> {reply}\n")
+        print(f"{args.name}> {response.reply}\n")
 
 
 if __name__ == "__main__":

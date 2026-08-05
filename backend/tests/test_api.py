@@ -1,6 +1,6 @@
 from fastapi.testclient import TestClient
 
-import app.main as main_module
+import app.orchestrator as orchestrator_module
 from app.main import app
 
 client = TestClient(app)
@@ -41,7 +41,7 @@ def test_chat_math_topic_uses_templated_answer_not_the_model(monkeypatch):
         def generate(self, system_prompt, message):
             raise AssertionError("generative model should be bypassed for numeric math topics")
 
-    monkeypatch.setattr(main_module, "DEFAULT_BACKEND", _ShouldNotBeCalledBackend())
+    monkeypatch.setattr(orchestrator_module, "DEFAULT_BACKEND", _ShouldNotBeCalledBackend())
     resp = client.post("/chat", json={"child": _child(), "message": "what is 3 plus 5"})
     assert resp.status_code == 200
     body = resp.json()
@@ -71,8 +71,8 @@ class _RiskyStubBackend:
     """Simulates a model that hallucinates unsafe-sounding output on a
     completely benign input -- observed for real with the trained local
     model during dev testing (see training/README.md). Verifies the
-    output-side check in main.py::chat() catches it before it reaches the
-    child, independent of what the child actually asked.
+    output-side check in orchestrator.py::handle_chat_turn() catches it
+    before it reaches the child, independent of what the child actually asked.
     """
 
     def generate(self, system_prompt, message):
@@ -81,7 +81,7 @@ class _RiskyStubBackend:
 
 
 def test_chat_output_side_check_catches_unsafe_generation(monkeypatch):
-    monkeypatch.setattr(main_module, "DEFAULT_BACKEND", _RiskyStubBackend())
+    monkeypatch.setattr(orchestrator_module, "DEFAULT_BACKEND", _RiskyStubBackend())
     resp = client.post("/chat", json={"child": _child(), "message": "why is the sky blue"})
     assert resp.status_code == 200
     body = resp.json()

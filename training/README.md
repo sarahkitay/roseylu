@@ -7,6 +7,16 @@ running app -- not Anthropic, not anyone else. See
 `docs/ARCHITECTURE.md`'s "design principle" section for why that's a hard
 rule here, not a preference.
 
+That rule is about the *app*, not about every script in this repository --
+`training/scripts/simulate_student_eval.py` is a dev-only tool that calls
+Anthropic/OpenAI to simulate students across grade levels and judge Rosey's
+replies, exactly the same category as Claude hand-authoring
+`synthetic_dialogues.py` or `backend/app/knowledge/curated_qa.py`: using a
+capable external model to help build and evaluate this project, never a
+runtime dependency of it. See that script's docstring and
+`docs/ARCHITECTURE.md` for exactly where the line is drawn and why it isn't
+a contradiction.
+
 ## What "from scratch" means concretely
 
 - `model/architecture.py` -- a decoder-only transformer (embeddings, causal
@@ -83,6 +93,36 @@ scratch and hoping to land somewhere similar -- which, at this scale, isn't
 guaranteed, because run-to-run random-seed variance is large enough to
 matter (see below). Compare snapshots with a fixed prompt set and a fixed
 generation seed before picking one, not by eyeballing the training log.
+
+## Finding gaps systematically: the simulated-student eval harness
+
+Every gap fixed so far (Columbus, "how do i do addition for class," the
+grooming false positive) was found by a human manually testing the chat UI
+and noticing something wrong. That doesn't scale, and it's not thorough --
+it only finds what someone happens to try. `training/scripts/simulate_student_eval.py`
+automates the finding part: it uses a real external model (Anthropic or
+OpenAI -- see `.env.example`) to role-play as a student at a specific grade
+level, generates a natural question in that persona, sends it through
+`orchestrator.handle_chat_turn()` (the exact same code path the API and CLI
+use -- no shortcuts), and optionally has an LLM judge score the reply on
+coherence, correctness, and age-fit. Results land in
+`training/runs/eval/*.json` (gitignored) with a summary of which
+replies scored low -- direct candidates for a new `curated_qa.py` entry or
+`synthetic_dialogues.py` example, the same way the Columbus gap was closed.
+
+```bash
+pip install -r training/requirements-eval.txt
+cp .env.example .env   # fill in ANTHROPIC_API_KEY and/or OPENAI_API_KEY
+python3 training/scripts/simulate_student_eval.py --grades 2-9 --questions-per-grade 3
+```
+
+This has NOT been run against real API keys in this environment (none are
+configured here) -- the wiring is verified with mocked LLM calls (the
+orchestrator call, JSON output, and summary logic all work end to end), but
+the actual quality of the simulated questions and judge scores depends on
+the real models, which nobody has evaluated yet. Run it and read the
+results critically before trusting the "low-quality" flags -- an LLM judge
+is itself an unverified heuristic, not ground truth.
 
 ## Honest scope and limits, including a real mistake and what it taught
 

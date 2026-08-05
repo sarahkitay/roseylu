@@ -1,0 +1,9 @@
+# Dependencies for training/scripts/simulate_student_eval.py ONLY.
+#
+# Deliberately kept separate from backend/requirements.txt: the running app
+# must never depend on a hosted LLM API (see docs/ARCHITECTURE.md), and
+# splitting the dependency files is one concrete way that rule is enforced
+# rather than just asserted -- `pip install -r backend/requirements.txt`
+# alone can never accidentally pull in a path to a third-party model.
+anthropic>=0.40
+openai>=1.50
