@@ -33,6 +33,8 @@ sensitive material. Treat it as a draft, not an authority.
 """
 from __future__ import annotations
 
+import difflib
+import re
 from dataclasses import dataclass
 
 
@@ -528,9 +530,44 @@ MATH: list[QAEntry] = [
 ALL_ENTRIES: list[QAEntry] = HISTORY + ENGLISH + MATH
 
 
+# Fuzzy-match threshold for the typo fallback below. Picked empirically: at
+# 0.88, real kid typos ("calcuslus"/"calculus" 0.94, "pythagrean"/
+# "pythagorean" 0.95, "subtractio"/"subtraction" 0.95) all clear it, while a
+# real false-positive risk found while tuning this ("fraction"/"friction",
+# two genuinely different words that happen to be similar-looking, 0.875)
+# stays just under it. That trade was deliberate: a missed typo just falls
+# back to the already-known-unreliable model, which claims no special
+# authority; a false-positive fuzzy match would confidently hand back the
+# WRONG curated answer, which is worse. Some real typos (e.g.
+# "columbis"/"columbus", also 0.875) fall on the wrong side of that same
+# line and won't get caught -- an accepted cost of erring toward precision.
+_FUZZY_THRESHOLD = 0.88
+_MIN_ANCHOR_LENGTH = 5  # skip fuzzy-matching short/common words -- unstable ratios, high collision risk
+
+_WORD_RE = re.compile(r"[a-z]+")
+
+
 def find_answer(message: str) -> str | None:
     text = message.lower()
     for entry in ALL_ENTRIES:
         if any(kw in text for kw in entry.keywords):
             return entry.answer
+    return _fuzzy_find_answer(text)
+
+
+def _fuzzy_find_answer(text: str) -> str | None:
+    """Typo-tolerant fallback, tried only after exact substring matching
+    finds nothing. Compares each keyword phrase's longest (most distinctive)
+    word against every word actually in the message -- typos land on the
+    topic-specific word ("calcuslus"), not the short connecting words
+    ("how," "does," "work"), so that's the one worth being tolerant about.
+    """
+    words = _WORD_RE.findall(text)
+    for entry in ALL_ENTRIES:
+        for kw in entry.keywords:
+            anchor = max(kw.split(), key=len)
+            if len(anchor) < _MIN_ANCHOR_LENGTH:
+                continue
+            if any(difflib.SequenceMatcher(None, w, anchor).ratio() >= _FUZZY_THRESHOLD for w in words):
+                return entry.answer
     return None

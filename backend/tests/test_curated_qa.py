@@ -28,3 +28,23 @@ def test_every_entry_has_a_working_keyword():
 def test_no_duplicate_topic_ids():
     ids = [e.topic_id for e in ALL_ENTRIES]
     assert len(ids) == len(set(ids))
+
+
+# Regression coverage for a real gap found live: "how to do calcuslus" (a
+# typo, and different phrasing than any exact keyword) matched nothing,
+# even though "calculus" is a curated topic -- keyword substring matching
+# alone can't handle arbitrary typos. Fixed with a fuzzy fallback in
+# find_answer(); these tests pin both the fix and the false-positive it has
+# to avoid.
+def test_typo_still_finds_the_curated_answer():
+    answer = find_answer("how to do calcuslus")
+    assert answer is not None
+    assert "derivatives" in answer
+
+
+def test_fuzzy_fallback_does_not_confuse_similar_but_different_words():
+    # "friction" is NOT a curated topic and must never fuzzy-match "fraction"
+    # (0.875 similarity -- close enough to be a real risk, deliberately
+    # tuned to fall just under the 0.88 threshold). A false-positive fuzzy
+    # match here would confidently hand back a wrong-subject answer.
+    assert find_answer("what is friction") is None
