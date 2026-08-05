@@ -30,6 +30,8 @@ from __future__ import annotations
 
 import re
 
+from app.config import AgeTier
+
 # "how do i do addition with 2 digit numbers" is a genuinely different
 # question from "what is 3 plus 2" -- multi-digit column addition (with
 # carrying) is a distinct skill, taught later, not just a bigger version of
@@ -62,8 +64,24 @@ def _extract_two_digit_pair(message: str) -> tuple[int, int]:
     return 24, 38  # ones digits (4+8=12) deliberately demonstrate carrying by default
 
 
-def _build_multidigit_addition_answer(message: str) -> str:
+def _build_multidigit_addition_answer(message: str, tier: AgeTier | None) -> str:
     a, b = _extract_two_digit_pair(message)
+
+    if tier == AgeTier.PRESCHOOL:
+        # Carrying/place-value isn't a developmentally appropriate concept
+        # at 3-6 -- found live, at age 4, the full column-addition
+        # explanation below (correct, but written for at least a 2nd
+        # grader) got shown as-is with no simplification at all. The right
+        # move here isn't a "simple" version of carrying -- it's the same
+        # explain-then-redirect shape used elsewhere in this app: validate
+        # the curiosity, say honestly that it's a skill for later, and
+        # pivot to something actually within reach right now.
+        return (
+            f"Ooh, adding big numbers like {a} and {b} is a math trick for bigger kids -- "
+            "you'll learn it soon! Right now, let's count something together. How many "
+            "fingers do you have? 1, 2, 3, 4, 5! Want to count something else?"
+        )
+
     ones_a, ones_b = a % 10, b % 10
     tens_a, tens_b = a // 10, b // 10
     ones_sum = ones_a + ones_b
@@ -88,25 +106,69 @@ def _build_multidigit_addition_answer(message: str) -> str:
     )
 
 
-def needs_illustration_suppressed(topic: str, message: str) -> bool:
-    """The penny-counting illustration renders one coin per unit -- fine for
-    single-digit sums, but "24 + 38" would try to draw 62 individual coins.
-    Rather than cap/distort the illustration, callers should suppress it
-    entirely for this case and let the text-only column-addition
-    explanation stand alone.
+def _count_up_phrase(total: int) -> str | None:
+    """A spoken-out counting sequence, only for totals small enough that
+    reciting every number is actually helpful rather than tedious."""
+    if 0 < total <= 10:
+        return ", ".join(str(i) for i in range(1, total + 1))
+    return None
+
+
+def _preschool_addition(a: int, b: int) -> str:
+    total = a + b
+    seq = _count_up_phrase(total)
+    counting = f" Let's count ALL of them together: {seq}." if seq else ""
+    return f"You have {a} pennies, then {b} more pennies come along!{counting} That's {total} pennies!"
+
+
+def _preschool_subtraction(a: int, b: int) -> str:
+    result = a - b
+    return f"You have {a} apples. {b} of them go away! Now let's count what's left -- that's {result} apples!"
+
+
+def _preschool_redirect(concept: str) -> str:
+    # Used for concepts that aren't really simplifiable to this age, not
+    # just multiplication/fractions by name -- see multidigit addition
+    # above for the same shape of response.
+    return (
+        f"Ooh, {concept} is a math trick for bigger kids -- you'll learn it soon! Right now, "
+        "let's count something together instead. How many fingers do you have? 1, 2, 3, 4, 5! "
+        "Want to count something else?"
+    )
+
+
+def needs_illustration_suppressed(topic: str, message: str, tier: AgeTier | None = None) -> bool:
+    """True when the illustration would be wrong or irrelevant for the
+    reply that's actually being shown:
+    - multi-digit addition: the penny-counting scene draws one coin per
+      unit, which would try to render 62 individual coins for "24 + 38".
+    - PRESCHOOL multiplication/fractions: these get a "let's count
+      something else instead" redirect (see _preschool_redirect), not an
+      actual answer -- a dot-grid or pizza-slice illustration next to that
+      text would be a non sequitur.
     """
-    return topic == "addition" and _is_multidigit_addition_question(message)
+    if topic == "addition" and _is_multidigit_addition_question(message):
+        return True
+    if tier == AgeTier.PRESCHOOL and topic in ("multiplication", "fractions"):
+        return True
+    return False
 
 
-def build_templated_answer(topic: str, numbers: list[int], message: str = "") -> str | None:
+def build_templated_answer(
+    topic: str, numbers: list[int], message: str = "", tier: AgeTier | None = None
+) -> str | None:
     """Returns a deterministic answer for topic/numbers, or None if this
     topic doesn't have a numeric template -- callers should fall back to
     the generative model in that case. `message` is only used to detect the
-    multi-digit-addition special case above; every other template is driven
-    purely by `numbers`, same as before.
+    multi-digit-addition special case; `tier` picks an age-appropriate
+    register where one exists (currently just PRESCHOOL, which needs a
+    genuinely different response for concepts like carrying and
+    multiplication, not just simpler wording of the same explanation --
+    found live after a 4-year-old got the same carrying explanation written
+    for at least a 2nd grader).
     """
     if topic == "addition" and _is_multidigit_addition_question(message):
-        return _build_multidigit_addition_answer(message)
+        return _build_multidigit_addition_answer(message, tier)
 
     if len(numbers) != 2:
         return None
@@ -114,23 +176,31 @@ def build_templated_answer(topic: str, numbers: list[int], message: str = "") ->
     a, b = numbers
 
     if topic == "addition":
+        if tier == AgeTier.PRESCHOOL:
+            return _preschool_addition(a, b)
         return (
             f"Let's picture it: {a} pennies in one hand, {b} more in the other. "
             f"Push them all into one pile and count everything -- that's {a} plus {b}, "
             f"which is {a + b}."
         )
     if topic == "subtraction":
+        if tier == AgeTier.PRESCHOOL:
+            return _preschool_subtraction(a, b)
         return (
             f"Picture {a} apples on a table. Take {b} of them away and count what's "
             f"left on the table -- that's {a} minus {b}, which is {a - b}."
         )
     if topic == "multiplication":
+        if tier == AgeTier.PRESCHOOL:
+            return _preschool_redirect("multiplication")
         return (
             f"Think of it as {a} groups with {b} things in each group. Instead of "
             f"counting them one at a time, {a} times {b} gives you the total right "
             f"away: {a * b}."
         )
     if topic == "fractions":
+        if tier == AgeTier.PRESCHOOL:
+            return _preschool_redirect("fractions")
         num, denom = a, b  # first number is the numerator, matching the illustration's a/b caption
         if denom == 0:
             return None

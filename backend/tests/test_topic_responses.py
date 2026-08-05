@@ -1,3 +1,4 @@
+from app.config import AgeTier
 from app.illustration.topic_responses import (
     build_templated_answer,
     needs_illustration_suppressed,
@@ -67,3 +68,56 @@ def test_illustration_suppressed_for_multidigit_addition():
     assert needs_illustration_suppressed("addition", "how do i do addition with 2 digit numbers") is True
     assert needs_illustration_suppressed("addition", "what is 3 plus 5") is False
     assert needs_illustration_suppressed("subtraction", "how do i do addition with 2 digit numbers") is False
+
+
+# Regression coverage for a real gap found live: a 4-year-old (PRESCHOOL
+# tier) asking "how do i do double digit addition" got the exact same
+# carrying/place-value explanation written for at least a 2nd grader, with
+# no age simplification at all -- because none of these templates were
+# tiered. Carrying isn't a "simplify the wording" problem at that age, it's
+# a "this isn't the right concept yet" problem, same shape as the
+# explain-then-redirect guardrail templates elsewhere in this app.
+def test_preschool_multidigit_addition_gets_a_gentle_redirect_not_carrying():
+    answer = build_templated_answer(
+        "addition", [3, 2], "how do i do double digit addition", tier=AgeTier.PRESCHOOL
+    )
+    assert answer is not None
+    assert "carry" not in answer.lower()
+    assert "bigger kids" in answer.lower()
+
+
+def test_preschool_single_digit_addition_is_simplified_but_still_answers():
+    answer = build_templated_answer("addition", [3, 2], tier=AgeTier.PRESCHOOL)
+    assert answer is not None
+    assert "5" in answer  # still gives the real answer, just simpler phrasing
+    assert "pile" not in answer.lower()  # the older-kid phrasing shouldn't leak in
+
+
+def test_preschool_subtraction_is_simplified():
+    answer = build_templated_answer("subtraction", [5, 2], tier=AgeTier.PRESCHOOL)
+    assert answer is not None
+    assert "3" in answer
+
+
+def test_preschool_multiplication_and_fractions_redirect_instead_of_explaining():
+    mult = build_templated_answer("multiplication", [3, 4], tier=AgeTier.PRESCHOOL)
+    frac = build_templated_answer("fractions", [1, 4], tier=AgeTier.PRESCHOOL)
+    assert "bigger kids" in mult.lower()
+    assert "bigger kids" in frac.lower()
+    assert "12" not in mult  # doesn't leak the actual product
+    assert "1/4" not in frac  # doesn't leak the actual fraction
+
+
+def test_middle_tier_addition_is_unaffected_by_preschool_changes():
+    # non-PRESCHOOL tiers (including no tier at all) must still get the
+    # original explanation -- this isn't a global behavior change
+    answer = build_templated_answer("addition", [3, 2], tier=AgeTier.MIDDLE)
+    assert "pile" in answer.lower()
+
+
+def test_illustration_suppressed_for_preschool_multiplication_and_fractions():
+    assert needs_illustration_suppressed("multiplication", "what is 3 times 4", tier=AgeTier.PRESCHOOL) is True
+    assert needs_illustration_suppressed("fractions", "what is 1/4", tier=AgeTier.PRESCHOOL) is True
+    assert needs_illustration_suppressed("multiplication", "what is 3 times 4", tier=AgeTier.MIDDLE) is False
+    # PRESCHOOL addition/subtraction still get their (simplified) illustration
+    assert needs_illustration_suppressed("addition", "what is 3 plus 5", tier=AgeTier.PRESCHOOL) is False
