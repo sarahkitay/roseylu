@@ -10,9 +10,19 @@ Implemented in `backend/app/config.py::AgeTier`.
 
 | Tier | Ages | Register |
 |---|---|---|
+| `PRESCHOOL` | 3–6 | Very short, simple, repetitive, playful -- see the caveat below |
 | `EARLY` | 7–9 | Playful, concrete, short sentences, high validation, minimal abstraction |
 | `MIDDLE` | 10–12 | Warmer-but-more-substantive, introduces nuance and "why", still concrete examples |
 | `TEEN` | 13–15 | Intellectually and emotionally substantive, treats the child as a reasoner, less hand-holding |
+
+`PRESCHOOL` extends the supported age floor from 7 down to 3, added on
+request. Worth being honest about what this does and doesn't solve: it's a
+real tier with its own tone rules and its own tier-1 safety redirect
+templates, but the product is a TEXT chat interface, and most 3-5 year olds
+can't read or type independently. Adding the tier makes appropriate content
+*exist*; it doesn't make a text chatbot a good product fit for a
+non-reading toddler using it unsupervised, which is a separate, unresolved
+product question -- see `docs/BLOCKERS.md`.
 
 Tier is derived from stored age + elapsed account time, and shifts gradually
 (see `persona/persona_engine.py::tone_weight`) rather than snapping at a

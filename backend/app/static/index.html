@@ -733,23 +733,50 @@ function shipSVG(x, y, hullColor, sailColor, delay) {
     <path d="M${x},${y-32} L${x+16},${y-4} L${x},${y-4} Z" fill="${sailColor}" stroke="${INK}" stroke-width="2.5"/>
   </g>`;
 }
-function buildColumbusScene() {
+function personSVG(x, y, color, delay) {
+  return `<g class="pop-item" style="animation-delay:${delay}s">
+    <circle cx="${x}" cy="${y-18}" r="7" fill="${color}" stroke="${INK}" stroke-width="2.5"/>
+    <path d="M${x-8},${y+6} Q${x},${y-12} ${x+8},${y+6} Z" fill="${color}" stroke="${INK}" stroke-width="2.5"/>
+  </g>`;
+}
+function buildColumbusScene(beat) {
   const waves = [108, 120, 132].map((y, i) => `
     <path d="M-10,${y} Q15,${y-6} 40,${y} T90,${y} T140,${y} T190,${y} T240,${y} T290,${y} T340,${y}"
           fill="none" stroke="#1CB0F6" stroke-width="3" opacity="${0.5 + i * 0.15}"/>`).join("");
-  return `<svg viewBox="0 0 300 155" xmlns="http://www.w3.org/2000/svg">
-    ${waves}
+  const ships = `
     ${shipSVG(55, 98, "#8B5A2B", "#FF4B4B", 0)}
     ${shipSVG(115, 100, "#8B5A2B", "#FFC800", 0.15)}
-    ${shipSVG(175, 97, "#8B5A2B", "#58CC02", 0.3)}
-    <g class="pop-item" style="animation-delay:0.5s">
-      <path d="M235,100 Q245,78 275,80 Q295,82 292,100 Z" fill="#58CC02" stroke="${INK}" stroke-width="3"/>
-      <line x1="270" y1="80" x2="270" y2="60" stroke="${INK}" stroke-width="2.5"/>
-      <path d="M270,60 L288,67 L270,74 Z" fill="#FF4B4B" stroke="${INK}" stroke-width="2"/>
-    </g>
-    <text x="150" y="145" font-size="12" text-anchor="middle" fill="${INK}" font-family="sans-serif">three ships, 1492</text>
+    ${shipSVG(175, 97, "#8B5A2B", "#58CC02", 0.3)}`;
+  const land = `<g class="pop-item" style="animation-delay:0.1s">
+      <path d="M225,100 Q235,78 265,80 Q290,82 288,100 Z" fill="#58CC02" stroke="${INK}" stroke-width="3"/>
+      <line x1="260" y1="80" x2="260" y2="58" stroke="${INK}" stroke-width="2.5"/>
+      <path d="M260,58 L278,65 L260,72 Z" fill="#FF4B4B" stroke="${INK}" stroke-width="2"/>
+    </g>`;
+
+  if (beat === 0) {
+    return `<svg viewBox="0 0 300 155" xmlns="http://www.w3.org/2000/svg">
+      ${waves}${ships}
+      <text x="150" y="145" font-size="12" text-anchor="middle" fill="${INK}" font-family="sans-serif">10 weeks at sea, 1492</text>
+    </svg>`;
+  }
+  if (beat === 1) {
+    return `<svg viewBox="0 0 300 155" xmlns="http://www.w3.org/2000/svg">
+      ${waves}${ships}${land}
+      <text x="150" y="145" font-size="12" text-anchor="middle" fill="${INK}" font-family="sans-serif">land! San Salvador, claimed for Spain</text>
+    </svg>`;
+  }
+  return `<svg viewBox="0 0 300 155" xmlns="http://www.w3.org/2000/svg">
+    ${waves}${land}
+    ${personSVG(245, 100, "#CE82FF", 0)}
+    ${personSVG(262, 103, "#FF9600", 0.15)}
+    ${personSVG(120, 100, "#1CB0F6", 0.3)}
+    <text x="150" y="145" font-size="12" text-anchor="middle" fill="${INK}" font-family="sans-serif">meeting people who were already there</text>
   </svg>`;
 }
+
+const MULTI_BEAT_BUILDERS = {
+  columbus: () => [buildColumbusScene(0), buildColumbusScene(1), buildColumbusScene(2)],
+};
 
 const ILLUSTRATION_BUILDERS = {
   addition: buildAdditionScene,
@@ -760,13 +787,20 @@ const ILLUSTRATION_BUILDERS = {
   science: () => buildScienceScene(),
   animals: () => buildAnimalsScene(),
   reading: () => buildReadingScene(),
-  columbus: () => buildColumbusScene(),
 };
 
 function buildIllustration(topic, numbers) {
+  // Always returns {frames: [...]} -- single-frame topics just get a
+  // 1-length array, so callers never need to special-case "is this a
+  // sequence." A multi-frame topic's frames advance in sync with the reply
+  // text being typed out (see typewriterReveal) -- "animations for each
+  // part of the story," not one static image for the whole answer.
+  const multiBeat = MULTI_BEAT_BUILDERS[topic];
+  if (multiBeat) return { frames: multiBeat(numbers || []) };
+
   const builder = ILLUSTRATION_BUILDERS[topic];
   if (!builder) return null;
-  return builder(numbers || []);
+  return { frames: [builder(numbers || [])] };
 }
 
 /* =========================================================================
@@ -797,15 +831,18 @@ function addChildBubble(text) {
   scrollToBottom();
 }
 
-function addRoseyBubble(action, illustrationSVG) {
+function addRoseyBubble(action, illustration) {
   clearEmptyState();
   const wrap = document.createElement("div");
 
-  if (illustrationSVG) {
+  let illustrationCardEl = null;
+  const frames = (illustration && illustration.frames) || [];
+  if (frames.length) {
     const illRow = document.createElement("div");
     illRow.className = "illustration-wrap";
-    illRow.innerHTML = `<div class="illustration-card">${illustrationSVG}</div>`;
+    illRow.innerHTML = `<div class="illustration-card">${frames[0]}</div>`;
     wrap.appendChild(illRow);
+    illustrationCardEl = illRow.querySelector(".illustration-card");
   }
 
   const row = document.createElement("div");
@@ -828,15 +865,36 @@ function addRoseyBubble(action, illustrationSVG) {
 
   thread.appendChild(wrap);
   scrollToBottom();
-  return { bubble, mini };
+  return { bubble, mini, illustrationCardEl, frames };
 }
 
-function typewriterReveal(fullText, bubble, mini) {
+function typewriterReveal(fullText, bubble, mini, illustrationCardEl, frames) {
   let i = 0;
+  let shownFrame = 0;
   startTalking(mini);
   const timer = setInterval(() => {
     i += 2;
     bubble.textContent = fullText.slice(0, i);
+
+    // Advance the illustration in step with how much of the story has been
+    // told -- "animations show for each part," not one static image for
+    // the whole answer. Only topics with more than one frame do anything
+    // here (see MULTI_BEAT_BUILDERS); everything else is a no-op.
+    if (frames && frames.length > 1 && illustrationCardEl) {
+      const progress = i / fullText.length;
+      const targetFrame = Math.min(frames.length - 1, Math.floor(progress * frames.length));
+      if (targetFrame !== shownFrame) {
+        shownFrame = targetFrame;
+        illustrationCardEl.innerHTML = frames[shownFrame];
+        // .illustration-card's pop-in animation only plays once per element
+        // by default -- toggling the class forces the browser to replay it
+        // on each new frame instead of just silently swapping the SVG.
+        illustrationCardEl.classList.remove("illustration-card");
+        void illustrationCardEl.offsetWidth;
+        illustrationCardEl.classList.add("illustration-card");
+      }
+    }
+
     scrollToBottom();
     if (i >= fullText.length) {
       clearInterval(timer);
@@ -883,8 +941,8 @@ async function sendMessage(message) {
     const data = await res.json();
     removeTyping();
     const illustration = data.topic ? buildIllustration(data.topic, data.topic_numbers) : null;
-    const { bubble, mini } = addRoseyBubble(data.action, illustration);
-    typewriterReveal(data.reply, bubble, mini);
+    const { bubble, mini, illustrationCardEl, frames } = addRoseyBubble(data.action, illustration);
+    typewriterReveal(data.reply, bubble, mini, illustrationCardEl, frames);
   } catch (err) {
     removeTyping();
     addRoseyBubble(null, null).bubble.textContent = "(couldn't reach the server -- is uvicorn still running?)";

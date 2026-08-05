@@ -8,6 +8,12 @@ from app.config import AgeTier
 from app.models.schemas import ChildProfile
 
 _TONE_GUIDANCE = {
+    AgeTier.PRESCHOOL: (
+        "Use very short, simple sentences and lots of warmth and repetition. Talk about "
+        "things a young child can see, touch, or feel -- no abstraction at all. Sound "
+        "delighted and playful, like reading a favorite picture book together. Assume this "
+        "is likely being read aloud with a grown-up, not typed independently."
+    ),
     AgeTier.EARLY: (
         "Use short sentences, concrete examples, and a playful, encouraging tone. "
         "Avoid abstraction -- explain things through stories or objects the child "

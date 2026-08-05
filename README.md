@@ -112,6 +112,27 @@ reasoning, including why sensitive topics (slavery, WWII) are included (they're
 standard elementary/middle-school curriculum) and treated carefully, and why
 this is a curated *starting set*, not a claim of exhaustive K-12 coverage.
 
+**Columbus is the flagship example of the fuller experience**, built out
+after live feedback on the plain-paragraph version: it's tiered by age
+(`QAEntry.answers_by_tier` -- a preschooler and a teenager get genuinely
+different stories, not the same paragraph at different reading levels),
+ends by asking the child a real question instead of a flat "both sides are
+valid" hedge, and pairs with a 3-frame animated illustration
+(`MULTI_BEAT_BUILDERS` in `index.html`) that advances in step with how much
+of the story has been told -- ships sailing, then landing and claiming the
+island, then meeting the people who already lived there. Ask "quiz me about
+columbus" (or "make a game about columbus") afterward for a real, stateful
+4-question quiz (`backend/app/knowledge/quiz.py`) -- it tracks which
+question you're on per child, checks your answer against the actual
+question, and gives you a score at the end. Only Columbus has the full
+tiered+animated+quiz treatment so far; everything else in `curated_qa.py`
+still uses a single register and a static illustration, extending the same
+pattern to more topics is straightforward but not yet done everywhere.
+
+Age support also now goes down to `AgeTier.PRESCHOOL` (3-6), added on
+request -- see `docs/BLOCKERS.md` for the honest caveat that a text chat
+interface has real limits for children who can't read or type yet.
+
 ## The chat UI trains the model as you use it
 
 `http://localhost:8000/` serves a styled chat page (`backend/app/static/index.html`)

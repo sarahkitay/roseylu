@@ -48,6 +48,17 @@ of engineering polish substitutes for them.
    for factual/pedagogical accuracy and age-appropriate framing rather than
    emotional safety. Treat it as a draft pending that review, same as
    everything else touching sensitive content in this repo.
+9. **`AgeTier.PRESCHOOL` (ages 3-6) is a product-fit question, not just a
+   code question.** The tier exists, is tested, and has its own tone rules
+   and safety redirect copy, extending the supported age floor from 7 down
+   to 3 on request. But this product is a TEXT chat interface, and most
+   3-5 year olds can't read or type independently -- adding the tier makes
+   the templates *exist*, it doesn't make a text chatbot a good product fit
+   for a non-reading toddler using it unsupervised. Plausible legitimate use
+   (a parent reading responses aloud together) is different from the
+   product's stated model of a child directly using it, and that gap hasn't
+   been resolved, just made visible. Worth a real product decision, not an
+   assumption baked in by whoever happened to be writing the code that day.
 
 ## Capability gap (not a safety blocker, but don't oversell it)
 

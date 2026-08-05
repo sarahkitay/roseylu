@@ -9,14 +9,28 @@ from enum import Enum
 
 
 class AgeTier(str, Enum):
-    """Developmental tier. See docs/SAFETY_MODEL.md for the rationale."""
+    """Developmental tier. See docs/SAFETY_MODEL.md for the rationale.
 
+    PRESCHOOL (3-6) was added on request, extending the supported age floor
+    from 7 down to 3. Worth being honest about a real practical limit this
+    doesn't solve: this product is a TEXT chat interface, and most 3-5 year
+    olds can't read or type independently -- a tier here makes the safety
+    templates and tone rules exist for that age, it doesn't make a text
+    chatbot a good product fit for a non-reading toddler. That's a product
+    question, not a code question, and it's unresolved -- see
+    docs/BLOCKERS.md. The tier is real and tested either way, e.g. for a
+    parent reading responses aloud with a young child.
+    """
+
+    PRESCHOOL = "preschool"  # 3-6
     EARLY = "early"    # 7-9
     MIDDLE = "middle"  # 10-12
     TEEN = "teen"      # 13-15
 
 
 def tier_for_age(age: int) -> AgeTier:
+    if age <= 6:
+        return AgeTier.PRESCHOOL
     if age <= 9:
         return AgeTier.EARLY
     if age <= 12:

@@ -35,7 +35,7 @@ class Action(str, Enum):
 
 class ChildProfile(BaseModel):
     child_id: str
-    age: int = Field(ge=7, le=15)
+    age: int = Field(ge=3, le=15)  # 3-6 is AgeTier.PRESCHOOL -- see config.py's caveat about text-chat fit at that age
     persona_name: str = "Rosey"
     persona_traits: list[str] = Field(default_factory=lambda: ["curious", "warm", "encouraging"])
 

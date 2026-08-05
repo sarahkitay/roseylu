@@ -24,6 +24,12 @@ CRISIS_LINE = "988 (call or text, any time, day or night)"
 
 
 _SELF_HARM = {
+    AgeTier.PRESCHOOL: (
+        "That sounds like a really big feeling inside you. Big feelings need a grown-up's "
+        "help, not mine. Can you go find a grown-up you trust -- like your mom, dad, or "
+        f"teacher -- right now and tell them how you feel? There's also a number, "
+        f"{CRISIS_LINE}, where a caring grown-up can talk to whoever is with you."
+    ),
     AgeTier.EARLY: (
         "Thank you for telling me that -- that took courage, and I'm really glad you "
         "didn't keep it to yourself. That's a really big, heavy feeling, and it deserves "
@@ -52,6 +58,11 @@ _SELF_HARM = {
 }
 
 _BODY_IMAGE = {
+    AgeTier.PRESCHOOL: (
+        "Ooh, that's a fun question, but it's not one I can answer -- nobody can measure "
+        "who's most beautiful, not even me! Everybody is beautiful in their own way. Can you "
+        "tell me one thing about YOU that makes you happy, like your smile or your laugh?"
+    ),
     AgeTier.EARLY: (
         "That's such a normal thing to wonder about -- lots of people think about it. But I "
         "can't really answer that one, because what's beautiful isn't something anyone can "
@@ -78,6 +89,12 @@ _BODY_IMAGE = {
 }
 
 _GROOMING = {
+    AgeTier.PRESCHOOL: (
+        "If someone -- even a grown-up -- asks you to keep a secret from your mom or dad, "
+        "that's not an okay game, even if they say it's fun. You are not in trouble. Please "
+        "go tell your mom, dad, or another grown-up you trust about this conversation right "
+        "now, okay?"
+    ),
     AgeTier.EARLY: (
         "I noticed this conversation is asking me to keep things secret or find out things "
         "like where you live or what you look like -- and I want to pause on that, because "
@@ -104,6 +121,10 @@ _GROOMING = {
 }
 
 _JAILBREAK = {
+    AgeTier.PRESCHOOL: (
+        "Silly me, I'm still me no matter what pretend game we play! What do you want to "
+        "talk about?"
+    ),
     AgeTier.EARLY: (
         "Ha, nice try! I'm still me even if you ask me to pretend otherwise -- that's not me "
         "being difficult, it's just who I am. What did you actually want to ask or do?"
@@ -130,6 +151,7 @@ _TIER2_EXPLANATIONS = {
 }
 
 _TIER2_REDIRECTS = {
+    AgeTier.PRESCHOOL: "Let's talk about something happy instead! What's your favorite animal?",
     AgeTier.EARLY: "What's something else on your mind? I'm happy to help with that instead.",
     AgeTier.MIDDLE: "I'm glad to help with almost anything else -- what's actually going on that led here?",
     AgeTier.TEEN: "I'll help with most things, just not that. If there's something underneath this worth talking through, I'm here for it.",
@@ -169,6 +191,7 @@ def build_redirect(category: RiskCategory, tier: AgeTier) -> str:
 # training/README.md), and the right response to that is "let's try again,"
 # not a redirect script written for a different situation.
 _GENERATION_FALLBACK = {
+    AgeTier.PRESCHOOL: "Oops! Ask me that again?",
     AgeTier.EARLY: "Oops, that didn't come out right! Can you ask me again?",
     AgeTier.MIDDLE: "That didn't come out the way I meant it to -- can you ask me that again?",
     AgeTier.TEEN: "That response didn't come out right on my end -- mind asking again?",

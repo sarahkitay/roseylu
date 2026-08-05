@@ -35,7 +35,9 @@ from __future__ import annotations
 
 import difflib
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+
+from app.config import AgeTier
 
 
 @dataclass
@@ -43,28 +45,99 @@ class QAEntry:
     subject: str
     topic_id: str
     keywords: list[str]
-    answer: str
+    answer: str  # used as-is when answers_by_tier is empty, and as the fallback for any tier missing from it
+    answers_by_tier: dict[AgeTier, str] = field(default_factory=dict)
+    # Most entries (still) use a single ungraded `answer` -- see the module
+    # docstring's honest accounting of why tiering everything wasn't done in
+    # one pass. `answers_by_tier` is opt-in per entry; Columbus is the first
+    # to use it, as the flagship example of what full tiering looks like.
+
+    def answer_for(self, tier: AgeTier | None) -> str:
+        if tier is not None and tier in self.answers_by_tier:
+            return self.answers_by_tier[tier]
+        return self.answer
 
 
 HISTORY: list[QAEntry] = [
     QAEntry(
         "history", "columbus",
         ["christopher columbus", "columbus come", "columbus sail", "columbus discover", "columbus get to america"],
+        # `answer` (below) stays as the MIDDLE-equivalent default for any
+        # caller that doesn't pass a tier (e.g. training/scripts/ tooling).
+        # `answers_by_tier` is the real, tiered content -- see it for the
+        # actual per-age story used by the live app.
         "Picture this: after 10 whole weeks sailing across open ocean with no land in sight, "
-        "Christopher Columbus and his crew finally spotted it on October 12, 1492. He'd sailed "
-        "from Spain with three ships -- the Nina, the Pinta, and the Santa Maria -- trying to "
-        "find a faster trade route to Asia by going west instead of the usual route around "
-        "Africa. When he landed on an island in the Caribbean, he named it San Salvador ('Holy "
-        "Savior') and claimed it for Spain. Here's the twist that changed history: Columbus was "
-        "completely convinced he'd landed near India. He hadn't -- he'd stumbled onto a "
-        "continent no European had ever known existed -- but because he believed it, he called "
-        "the people he met there 'Indians.' That mistaken name ended up sticking for Indigenous "
-        "peoples across the Americas for hundreds of years. His voyages opened the door to "
-        "massive European exploration and settlement -- but millions of Indigenous people "
-        "already lived there, with their own rich histories going back thousands of years, and "
-        "what came after brought devastating harm to those communities. That's why some people "
-        "remember Columbus mainly as a bold explorer, and others focus on the harm that "
-        "followed his arrival -- both parts of the story are true."
+        "Christopher Columbus and his crew finally spotted land on October 12, 1492. He'd "
+        "sailed from Spain with three ships -- the Nina, the Pinta, and the Santa Maria -- "
+        "trying to find a faster trade route to Asia by going west instead of the usual route "
+        "around Africa. When he landed on an island in the Caribbean, he named it San Salvador "
+        "('Holy Savior') and claimed it for Spain. Here's the twist that changed history: "
+        "Columbus was completely convinced he'd landed near India. He hadn't -- he'd stumbled "
+        "onto a continent no European had ever known existed -- but because he believed it, he "
+        "called the people he met there 'Indians.' That mistaken name ended up sticking for "
+        "Indigenous peoples across the Americas for hundreds of years. His voyages opened the "
+        "door to massive European exploration and settlement, but millions of Indigenous "
+        "people already lived there, with their own rich histories going back thousands of "
+        "years -- and what came after brought devastating harm to those communities. "
+        "Historians still argue about how to tell this story because of that. What do you "
+        "think matters more when we remember Columbus -- the incredible journey, or what "
+        "happened to the people who were already there?",
+        answers_by_tier={
+            AgeTier.PRESCHOOL: (
+                "A long, long time ago, a sailor named Christopher Columbus sailed 3 little "
+                "boats across a HUGE ocean. He sailed for many, many weeks! Finally, he found "
+                "land. But guess what -- people already lived there! Columbus thought he'd "
+                "found a place called India, so he called the people 'Indians' -- even though "
+                "he was somewhere totally new and different. Silly mix-up, right? If YOU found "
+                "a brand new place, what would you want to name it?"
+            ),
+            AgeTier.EARLY: (
+                "Get this: Christopher Columbus sailed across the ocean for 10 whole weeks -- "
+                "that's more than two months! -- with three ships called the Nina, the Pinta, "
+                "and the Santa Maria. On October 12, 1492, they finally saw land. Columbus "
+                "named the island San Salvador and figured he must have reached India, so he "
+                "called the people who already lived there 'Indians.' He was wrong -- he'd "
+                "actually found a whole continent nobody in Europe knew existed! -- but that "
+                "name stuck around for a really long time. Lots of people already lived in the "
+                "Americas before Columbus ever showed up, with their own families, languages, "
+                "and traditions. If you sailed for 10 weeks and finally saw land, what's the "
+                "first thing you think you'd do?"
+            ),
+            AgeTier.MIDDLE: (
+                "Picture this: after 10 whole weeks sailing across open ocean with no land in "
+                "sight, Christopher Columbus and his crew finally spotted land on October 12, "
+                "1492. He'd sailed from Spain with three ships -- the Nina, the Pinta, and the "
+                "Santa Maria -- trying to find a faster trade route to Asia by going west "
+                "instead of the usual route around Africa. When he landed on an island in the "
+                "Caribbean, he named it San Salvador ('Holy Savior') and claimed it for Spain. "
+                "Here's the twist that changed history: Columbus was completely convinced he'd "
+                "landed near India. He hadn't -- he'd stumbled onto a continent no European had "
+                "ever known existed -- but because he believed it, he called the people he met "
+                "there 'Indians.' That mistaken name ended up sticking for Indigenous peoples "
+                "across the Americas for hundreds of years. His voyages opened the door to "
+                "massive European exploration and settlement, but millions of Indigenous people "
+                "already lived there, with their own rich histories going back thousands of "
+                "years -- and what came after brought devastating harm to those communities. "
+                "So here's a real question historians still argue about: when we tell this "
+                "story, what should we lead with -- the incredible journey, or what happened "
+                "to the people who were already there? What's your take?"
+            ),
+            AgeTier.TEEN: (
+                "Here's the version most people don't get in school: Columbus sailed west for "
+                "10 weeks in 1492 -- three ships, the Nina, the Pinta, and the Santa Maria -- "
+                "trying to find a cheaper route to Asian trade markets. When he hit land in the "
+                "Caribbean, he was so sure he'd reached the Indies that he called the people he "
+                "met 'Indians,' a mistaken label that outlived him by centuries. He never "
+                "actually figured out he'd found an entire continent nobody in Europe knew "
+                "existed. That 'discovery' framing is exactly what's contested: for millions of "
+                "Indigenous people who already lived there, with their own nations and "
+                "histories going back thousands of years, 1492 marks the start of colonization, "
+                "disease, and violence, not a triumphant arrival. Both the navigational "
+                "achievement and the harm that followed are historically real -- the "
+                "disagreement is about which one gets to define how we remember him. Where do "
+                "you land on that?"
+            ),
+        },
     ),
     QAEntry(
         "history", "thanksgiving_pilgrims",
@@ -634,7 +707,13 @@ def _answer_synonym_question(message: str) -> str | None:
     )
 
 
-def find_answer(message: str) -> str | None:
+def find_answer(message: str, tier: AgeTier | None = None) -> str | None:
+    """`tier` picks a per-tier variant for entries that have one (currently
+    just Columbus, the flagship example -- see QAEntry.answers_by_tier).
+    Omitting it (or a tier that entry hasn't authored) falls back to the
+    entry's single default `answer`, so this stays backward compatible with
+    every entry that hasn't been tiered yet.
+    """
     specific = _answer_synonym_question(message)
     if specific:
         return specific
@@ -642,11 +721,11 @@ def find_answer(message: str) -> str | None:
     text = message.lower()
     for entry in ALL_ENTRIES:
         if any(kw in text for kw in entry.keywords):
-            return entry.answer
-    return _fuzzy_find_answer(text)
+            return entry.answer_for(tier)
+    return _fuzzy_find_answer(text, tier)
 
 
-def _fuzzy_find_answer(text: str) -> str | None:
+def _fuzzy_find_answer(text: str, tier: AgeTier | None = None) -> str | None:
     """Typo-tolerant fallback, tried only after exact substring matching
     finds nothing. Compares each keyword phrase's longest (most distinctive)
     word against every word actually in the message -- typos land on the
@@ -660,5 +739,5 @@ def _fuzzy_find_answer(text: str) -> str | None:
             if len(anchor) < _MIN_ANCHOR_LENGTH:
                 continue
             if any(difflib.SequenceMatcher(None, w, anchor).ratio() >= _FUZZY_THRESHOLD for w in words):
-                return entry.answer
+                return entry.answer_for(tier)
     return None

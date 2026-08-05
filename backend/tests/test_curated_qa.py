@@ -1,3 +1,4 @@
+from app.config import AgeTier
 from app.knowledge.curated_qa import ALL_ENTRIES, find_answer
 
 
@@ -5,6 +6,34 @@ def test_columbus_question_gets_curated_answer():
     answer = find_answer("i need to understand how christopher columbus came and why")
     assert answer is not None
     assert "1492" in answer
+
+
+def test_columbus_is_tiered_by_age():
+    msg = "how did christopher columbus get to america"
+    preschool = find_answer(msg, tier=AgeTier.PRESCHOOL)
+    teen = find_answer(msg, tier=AgeTier.TEEN)
+    assert preschool != teen
+    assert len(preschool) < len(teen)  # preschool version is meaningfully simpler/shorter
+    assert "1492" in teen
+
+
+def test_columbus_omitted_tier_falls_back_to_default_answer():
+    # callers that don't know about tiers (training/scripts/ tooling) must
+    # still get a sensible answer, not a crash or None
+    answer = find_answer("how did christopher columbus get to america")
+    assert answer is not None
+    assert "1492" in answer
+
+
+def test_columbus_does_not_end_with_a_flat_hedge_conclusion():
+    # regression coverage for the specific generic-AI phrasing flagged live:
+    # "both parts of the story are true" as a flat, opinion-free conclusion.
+    # The rewrite should end by asking the child something, not summarizing
+    # for them.
+    for tier in AgeTier:
+        answer = find_answer("how did christopher columbus get to america", tier=tier)
+        assert "both parts of the story are true" not in answer.lower()
+        assert answer.rstrip().endswith("?")
 
 
 def test_history_english_math_all_represented():

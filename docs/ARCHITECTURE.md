@@ -37,7 +37,8 @@ safeai-kids/
         topic_classifier.py     keyword topic detection for cartoon illustrations (zero safety weight)
         topic_responses.py      deterministic math answers (addition/subtraction/multiplication/fractions)
       knowledge/
-        curated_qa.py           ~40 hand-authored History/English/Math answers, keyword-matched
+        curated_qa.py           ~40 hand-authored History/English/Math answers, keyword-matched, fuzzy-typo-tolerant
+        quiz.py                 stateful multi-turn quiz/game generator for curated topics
       generation/
         base_model.py           pluggable model backend interface + stub fallback
         local_model.py          loads the from-scratch checkpoint, runs generation

@@ -15,11 +15,27 @@ from typing import Callable
 from app.generation.base_model import DEFAULT_BACKEND
 from app.guardrails.pipeline import DEFAULT_PIPELINE
 from app.illustration import topic_classifier, topic_responses
-from app.knowledge import curated_qa
+from app.knowledge import curated_qa, quiz
 from app.models.schemas import Action, ChatResponse, ChildProfile
 from app.persona.persona_engine import build_system_prompt
 from app.response.redirect_engine import build_generation_safety_fallback, build_redirect
 from app.review_queue import DEFAULT_QUEUE
+
+
+def _resolve_quiz(child: ChildProfile, message: str) -> tuple[str | None, str | None, list[int]]:
+    """Returns (reply, topic, topic_numbers) if this turn is quiz-related
+    (either an answer to an active quiz, or a request to start one), or
+    (None, None, []) if it isn't -- callers fall through to the normal
+    topic/templated/curated/generative decision in that case.
+    """
+    if quiz.has_active_session(child.child_id):
+        return quiz.handle_answer(child.child_id, message), quiz.active_topic(child.child_id), []
+
+    quiz_topic = quiz.detect_quiz_request(message)
+    if quiz_topic is not None:
+        return quiz.start_quiz(child.child_id, quiz_topic), quiz_topic, []
+
+    return None, None, []
 
 
 def handle_chat_turn(
@@ -39,33 +55,46 @@ def handle_chat_turn(
     result = DEFAULT_PIPELINE.evaluate(message)
 
     if result.action == Action.ALLOW:
-        # Topic is classified from the CHILD's question, before generation,
-        # for two reasons: the illustration needs it regardless, and for the
-        # handful of numeric math topics it lets us skip the generative
-        # model entirely in favor of a deterministic, correct answer -- see
-        # app/illustration/topic_responses.py for why that's the right
-        # tradeoff specifically for arithmetic (not a general fix for model
-        # quality). "What is the child asking about" is also a far more
-        # robust signal than classifying the model's own reply, which is
-        # often unreliable at this model's scale (see training/README.md).
-        topic = topic_classifier.classify(message)
-        topic_numbers = topic_classifier.extract_numbers(message, topic) if topic else []
+        # Quiz/game state takes priority over everything else on the ALLOW
+        # path: if a quiz is already active for this child, their message
+        # IS the answer to the current question, not a new question of its
+        # own -- classifying it as a topic or feeding it to the model would
+        # be wrong. Starting a new quiz is checked the same way, before the
+        # normal topic/templated/curated/generative decision, since "quiz me
+        # about columbus" should start a quiz, not trigger the Columbus
+        # curated answer as if it were a factual question.
+        reply, topic, topic_numbers = _resolve_quiz(child, message)
 
-        templated = topic_responses.build_templated_answer(topic, topic_numbers) if topic else None
-        curated = curated_qa.find_answer(message) if templated is None else None
-        if templated is not None:
-            reply = templated
-        elif curated is not None:
-            # Curated History/English/Math answers (app/knowledge/curated_qa.py)
-            # -- same reasoning as the math templates above, extended past
-            # pure arithmetic: the local model has no reliable general
-            # knowledge at this training scale (see training/README.md), so
-            # well-known curriculum topics get a hand-written, correct
-            # answer instead of a generated guess.
-            reply = curated
-        else:
-            system_prompt = build_system_prompt(child)
-            reply = DEFAULT_BACKEND.generate(system_prompt, message)
+        if reply is None:
+            # Topic is classified from the CHILD's question, before
+            # generation, for two reasons: the illustration needs it
+            # regardless, and for the handful of numeric math topics it lets
+            # us skip the generative model entirely in favor of a
+            # deterministic, correct answer -- see
+            # app/illustration/topic_responses.py for why that's the right
+            # tradeoff specifically for arithmetic (not a general fix for
+            # model quality). "What is the child asking about" is also a far
+            # more robust signal than classifying the model's own reply,
+            # which is often unreliable at this model's scale (see
+            # training/README.md).
+            topic = topic_classifier.classify(message)
+            topic_numbers = topic_classifier.extract_numbers(message, topic) if topic else []
+
+            templated = topic_responses.build_templated_answer(topic, topic_numbers) if topic else None
+            curated = curated_qa.find_answer(message, tier=child.age_tier) if templated is None else None
+            if templated is not None:
+                reply = templated
+            elif curated is not None:
+                # Curated History/English/Math answers (app/knowledge/curated_qa.py)
+                # -- same reasoning as the math templates above, extended
+                # past pure arithmetic: the local model has no reliable
+                # general knowledge at this training scale (see
+                # training/README.md), so well-known curriculum topics get a
+                # hand-written, correct answer instead of a generated guess.
+                reply = curated
+            else:
+                system_prompt = build_system_prompt(child)
+                reply = DEFAULT_BACKEND.generate(system_prompt, message)
 
         # Output-side check: the guardrail pipeline above only evaluated the
         # CHILD's message. A small, not-instruction-tuned model can produce
