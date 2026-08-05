@@ -423,6 +423,70 @@ MATH: list[QAEntry] = [
         "1,000 meters = 1 kilometer -- metric conversions are all powers of 10, which is why "
         "many scientists prefer it."
     ),
+    QAEntry(
+        "math", "pythagorean_theorem",
+        # "pythag" (not "pythagorean") on purpose -- it's a substring of common
+        # misspellings too, like "pythagrean," which is exactly the phrasing
+        # that first surfaced this gap during live testing.
+        ["pythag"],
+        "The Pythagorean theorem works for right triangles (triangles with one 90-degree "
+        "corner): if you square the two shorter sides and add them together, you get the "
+        "square of the longest side (the hypotenuse, the one opposite the right angle). "
+        "Written as a formula: a^2 + b^2 = c^2. So if the two shorter sides are 3 and 4, "
+        "3^2 + 4^2 = 9 + 16 = 25, and the square root of 25 is 5 -- the hypotenuse is 5."
+    ),
+    QAEntry(
+        "math", "square_roots",
+        ["what is a square root", "how do square roots work"],
+        "A square root asks 'what number, multiplied by itself, gives me this?' The square "
+        "root of 9 is 3, because 3 times 3 is 9. The little checkmark-shaped symbol (√) means "
+        "'square root of.' Perfect squares like 4, 9, 16, and 25 have whole-number square "
+        "roots (2, 3, 4, and 5) -- most other numbers don't."
+    ),
+    QAEntry(
+        "math", "exponents",
+        ["what is an exponent", "what does squared mean", "what does cubed mean"],
+        "An exponent tells you how many times to multiply a number by itself. 3^2 (3 "
+        "'squared') means 3 times 3, which is 9. 3^3 (3 'cubed') means 3 times 3 times 3, "
+        "which is 27. The little raised number is the exponent, and the number underneath "
+        "it is called the base."
+    ),
+    # Basic shapes: added after live testing showed the local model
+    # confidently retrieving the WRONG shape's fact -- "how many sides does
+    # a square have" got answered with "3 sides" (a triangle fact it had
+    # memorized from a similar-sounding training example). That's a
+    # different, more concerning failure mode than incoherent text: a
+    # fluent, confident, factually WRONG answer. Deterministic per-shape
+    # answers close it the same way the other curated topics do.
+    QAEntry(
+        "math", "square_shape",
+        ["sides does a square", "square shape", "square have"],
+        "A square has exactly 4 sides, all the same length, and 4 corners that are all "
+        "right angles (90 degrees). If a shape has 4 equal sides but its corners AREN'T "
+        "right angles, it's a rhombus, not a square."
+    ),
+    QAEntry(
+        "math", "triangle_shape",
+        ["sides does a triangle", "triangle have"],
+        "A triangle always has exactly 3 sides and 3 corners, no matter how big, small, "
+        "pointy, or wide it looks. The three angles inside a triangle always add up to "
+        "180 degrees, no matter the triangle's shape."
+    ),
+    QAEntry(
+        "math", "rectangle_shape",
+        ["sides does a rectangle", "rectangle have", "what is a rectangle"],
+        "A rectangle has 4 sides and 4 right-angle corners, like a square -- but unlike a "
+        "square, a rectangle's sides don't all have to be the same length. It just needs "
+        "each pair of opposite sides to be equal (two long sides matching each other, two "
+        "short sides matching each other)."
+    ),
+    QAEntry(
+        "math", "circle_shape",
+        ["what is a circle", "sides does a circle"],
+        "A circle has no straight sides or corners at all -- it's one continuous curved "
+        "line where every point is exactly the same distance from the center. That "
+        "distance from the center to the edge is called the radius."
+    ),
 ]
 
 ALL_ENTRIES: list[QAEntry] = HISTORY + ENGLISH + MATH

@@ -27,7 +27,14 @@ _TOPIC_KEYWORDS: list[tuple[str, list[str]]] = [
     ("subtraction", ["minus", "subtract", "subtraction", "take away", "how many are left", "difference between"]),
     ("multiplication", ["times", "multiply", "multiplication", "groups of", "product of"]),
     ("fractions", ["fraction", "numerator", "denominator", "half of", "quarter of", "slices of"]),
-    ("shapes", ["shape", "circle", "square", "triangle", "rectangle", "geometry", "sides does", "angle"]),
+    # "square" deliberately excluded as a bare keyword -- it's overloaded
+    # with math operations ("square root", "3 squared", "what is an
+    # exponent... squared"), which real-world testing showed misfiring into
+    # this (irrelevant) illustration topic instead of the math one. Specific
+    # phrases catch the actual "square the shape" question without that
+    # collision.
+    ("shapes", ["shape", "circle", "triangle", "rectangle", "geometry", "sides does", "angle",
+                "square shape", "draw a square", "square have", "corners does a square"]),
     ("science", ["planet", "space", "solar system", "moon", "star", "atom", "gravity", "volcano", "ocean current"]),
     ("animals", ["animal", " dog", " cat ", "whale", "lion", "elephant", " bird", " fish", "puppy", "kitten"]),
     ("reading", ["spell", "spelling", "vocabulary", "what does the word", "book report", "poem", "rhyme"]),
