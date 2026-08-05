@@ -41,7 +41,7 @@ safeai-kids/
       generation/
         base_model.py           pluggable model backend interface + stub fallback
         local_model.py          loads the from-scratch checkpoint, runs generation
-        online_trainer.py       short live training bursts on conversation, replay-buffered
+        online_trainer.py       short live training bursts; also READS (never writes) teacher_reviewed.jsonl
       review_queue.py           append-only escalation log (no raw text)
       main.py                   FastAPI app: POST /chat, GET / (chat UI), GET /training-status
       static/index.html         styled single-page chat UI + character designer, no build step
@@ -55,18 +55,21 @@ safeai-kids/
       synthetic_dialogues.py    hand-authored Child:/Rosey: training dialogue
       corpus/public_domain/     public-domain children's literature (fluency data)
       corpus/combined.txt       assembled training corpus (build_corpus.py output)
+      corpus/teacher_reviewed.jsonl  teacher_review_loop.py output (gitignored) -- confirmed/corrected live exchanges
     runs/v0/                    trained checkpoint + tokenizer vocab (gitignored)
       snapshots/                per-checkpoint snapshots, since the best iteration ≠ the final one
     runs/eval/                  simulate_student_eval.py output (gitignored)
     scripts/
-      build_corpus.py           assembles the training corpus from the 3 sources above
+      build_corpus.py           assembles the training corpus from the 4 sources above
       train_from_scratch.py     trains model/architecture.py on the corpus, saves checkpoint
       simulate_student_eval.py  offline: external LLMs role-play students by grade + judge replies
+      teacher_review_loop.py    offline, continuous: external "teacher" model reviews live conversation
       prepare_dataset.py        seed_dataset.jsonl -> chat-format JSONL (for the alt LoRA path below)
       finetune_lora.py          alt path: LoRA fine-tune of an open-source base model (not Anthropic; needs GPU, not run here)
       evaluate.py                runs guardrail pipeline against seed set, reports metrics
-    requirements-eval.txt       anthropic + openai SDKs -- ONLY for simulate_student_eval.py
-  .env.example                  template for ANTHROPIC_API_KEY / OPENAI_API_KEY (eval tooling only)
+    requirements-eval.txt       anthropic + openai SDKs -- ONLY for scripts/, never backend/app/
+  .env                          real keys (gitignored): ANTHROPIC_API_KEY, OPENAI_API_KEY, TEACHER_BACKEND, TEACHER_MODEL
+  .env.example                  template for the above (eval/teacher tooling only)
 ```
 
 ## Request flow (implemented)
@@ -157,17 +160,26 @@ of either interface for this product, independent of which provider.
 **Where the line actually is.** "No third-party API" is a rule about the
 *app* (`backend/app/`) — what a real child's message touches at runtime. It
 is not a rule against ever using a capable external model anywhere in this
-repository. `training/scripts/simulate_student_eval.py` calls
-Anthropic/OpenAI directly, and that's fine: it's a dev-only tool that
-role-plays students and judges Rosey's replies to find gaps (like the
-Columbus one) systematically, the same category as Claude hand-authoring
-`synthetic_dialogues.py` or `curated_qa.py` — using a capable model to help
-build and evaluate the product, never a runtime dependency of it. The test
-that matters: does a real child's request ever cause the running app to
-make a network call to a third-party model provider? For `backend/app/`,
-the answer must always be no. For `training/scripts/`, it's fine as long as
-the *result* (a checkpoint, a curated answer, a list of gaps to fix) is
-what lands in the app — never a live call in the request path itself. This
-is also why `training/requirements-eval.txt` is a separate file from
+repository. `training/scripts/simulate_student_eval.py` and
+`training/scripts/teacher_review_loop.py` both call Anthropic/OpenAI
+directly, and that's fine: one role-plays students and judges Rosey's
+replies to find gaps (like the Columbus one) on demand, the other
+continuously reviews live conversation and writes corrected examples for
+the model to learn from — both dev/training tools, the same category as
+Claude hand-authoring `synthetic_dialogues.py` or `curated_qa.py`: using a
+capable model to help build and improve the product, never a runtime
+dependency of it. `online_trainer.py` reading `teacher_reviewed.jsonl` is
+still on the safe side of this line even though it lives in `backend/app/`
+— it only ever reads a file another process wrote; it never makes a network
+call or imports either SDK itself (verify with
+`grep -rl dotenv backend/app/` — nothing). The test that matters: does a
+real child's request ever cause the running app to make a network call to
+a third-party model provider? For `backend/app/`, the answer must always be
+no, including indirectly — the child's reply is never delayed by, or
+swapped for, a live teacher-model call. For `training/scripts/`, it's fine
+as long as the *result* (a checkpoint, a curated answer, a corrected
+training example, a list of gaps to fix) is what lands in the app — never a
+live call in the request path itself. This is also why
+`training/requirements-eval.txt` is a separate file from
 `backend/requirements.txt`, and why `.env` only ever gets read by scripts
 under `training/scripts/`, never by anything under `backend/app/`.

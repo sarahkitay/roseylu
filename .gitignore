@@ -6,6 +6,7 @@ backend/data/
 training/data/prepared/
 training/data/corpus/combined.txt
 training/data/corpus/live_interactions.jsonl
+training/data/corpus/teacher_reviewed.jsonl
 training/runs/
 .env
 *.egg-info/

@@ -124,6 +124,67 @@ the real models, which nobody has evaluated yet. Run it and read the
 results critically before trusting the "low-quality" flags -- an LLM judge
 is itself an unverified heuristic, not ground truth.
 
+## Teaching Rosey to improve herself: the teacher review loop
+
+`training/scripts/teacher_review_loop.py` is the other half of the loop:
+where the eval harness above finds gaps on demand, this one runs
+continuously alongside the app, reviewing every real exchange as it
+happens. Set `TEACHER_BACKEND` (`anthropic` or `openai` -- aliases like
+`claude`/`gpt` work too) and `TEACHER_MODEL` in `.env`, then:
+
+```bash
+python3 training/scripts/teacher_review_loop.py --watch --interval 30
+```
+
+It tails `training/data/corpus/live_interactions.jsonl` (already written by
+`online_trainer.py` for every ALLOW-path exchange), sends each new one to
+the teacher model with a prompt specifically asking it to write in the
+voice of "a thoughtful child development professional, never a generic AI
+assistant," and writes the result -- confirmed-good or corrected -- to
+`teacher_reviewed.jsonl`. That file feeds two places, both by reading it,
+never by calling anything: `online_trainer.py` mixes recent entries into
+every online-learning burst's replay text, and `build_corpus.py` folds the
+whole file into the next full training run. **The child never talks to the
+teacher model, directly or indirectly, in real time** -- it only ever
+touches conversation after the local model has already replied, in a
+separate process, on a delay. See docs/ARCHITECTURE.md's "where the line
+actually is" section for why that boundary is drawn exactly there.
+
+**Run against this session's real conversation log (86 exchanges, real
+Anthropic API), this actually worked as intended and is worth reporting
+plainly:**
+
+- 35/86 (41%) were approved as-is by the teacher, no correction needed --
+  notably, essentially everything asked *after* the templated math answers
+  and curated_qa.py existed (e.g. "what is a synonym," "what is 3 plus 5,"
+  "who was christopher columbus" all scored 4-5/5 and needed no correction).
+  Everything from *before* those existed (raw model output on "why is the
+  sky blue," "hi there," etc., from earlier in this session) got flagged
+  quality 1 and corrected -- the teacher independently reached the same
+  conclusion this file already documents about the raw model's reliability.
+- Two real bugs surfaced from the actual run, not hypothetical edge cases:
+  the model sometimes wraps its JSON reply in ` ```json ` fences despite
+  being told to respond with ONLY JSON (3 of 86 responses), and a
+  500-token cap was too tight for a full corrected reply plus JSON
+  overhead, truncating at least one response mid-string. Both fixed
+  (markdown-fence stripping, 800-token cap) -- the 3 historical failures
+  degrade gracefully (they fall back to the unmodified original reply, not
+  corrupted data) and weren't worth retroactively reprocessing, but the fix
+  applies to every review from here on.
+- Also found and fixed before the real run even started: `TEACHER_BACKEND=claude`
+  (a completely reasonable value to write) failed every single review with
+  "unknown teacher backend" until alias normalization was added, and the
+  checkpoint was advancing past failed reviews so they'd never be retried
+  -- both caught by testing against the actual accumulated log rather than
+  a synthetic one, and both now have regression tests
+  (`backend/tests/test_teacher_review_loop.py`).
+
+A full retraining run incorporating this batch's 46K characters of
+teacher-reviewed content has NOT been done yet -- worth doing, but the
+three retraining rounds documented above already showed real run-to-run
+variance, so it's a deliberate next step to take with attention, not
+something to trigger reflexively every time new data shows up.
+
 ## Honest scope and limits, including a real mistake and what it taught
 
 The first version of this file described a ~10M-parameter **character-level**

@@ -16,6 +16,18 @@ prototype-scale model:
    handful of online updates -- classic continual-learning failure mode.
    Replay doesn't eliminate drift, it bounds it.
 
+Every burst also mixes in recent entries from `teacher_reviewed.jsonl`, if
+present -- confirmed-good or corrected examples written by
+`training/scripts/teacher_review_loop.py`, a SEPARATE process that reviews
+live conversation with an external "teacher" model (Anthropic/OpenAI) and
+writes results to that file. This module only ever READS that file; it
+never calls a third-party API itself, and never waits on one -- if the file
+doesn't exist or hasn't been updated yet, bursts proceed exactly as before.
+That separation is deliberate and load-bearing, not incidental: see
+docs/ARCHITECTURE.md's "where the line actually is" section for why the
+live app (everything under backend/app/) must never depend on a third-party
+API, even for something as indirect as this.
+
 Concurrency: `generate()` and a training burst both touch the same live
 `nn.Module`, and PyTorch's `.train()`/`.eval()` mode is a mutable flag on the
 model, not thread-local. A single shared `threading.Lock` (owned by
@@ -44,6 +56,7 @@ import torch
 _ROOT = Path(__file__).parent.parent.parent.parent
 _REPLAY_CORPUS_PATH = _ROOT / "training" / "data" / "corpus" / "combined.txt"
 _LIVE_LOG_PATH = _ROOT / "training" / "data" / "corpus" / "live_interactions.jsonl"
+_TEACHER_REVIEWED_PATH = _ROOT / "training" / "data" / "corpus" / "teacher_reviewed.jsonl"
 
 _REPLAY_CHUNK_CHARS = 20_000
 _BURST_ITERS = 40
@@ -51,6 +64,8 @@ _BURST_BATCH_SIZE = 8
 _BURST_LR = 5e-5
 _INTERACTIONS_PER_BURST = 3  # train after every N new (child, reply) pairs
 _PENDING_REPEATS = 4  # repeat the new interactions within the burst text so they carry real weight
+_TEACHER_REPEATS = 4  # same reasoning -- teacher-confirmed examples are higher-quality, worth the weight
+_TEACHER_RECENT_LIMIT = 50  # most recent N teacher-reviewed entries considered per burst
 
 
 def _get_batch(data: torch.Tensor, block_size: int, batch_size: int, device: torch.device):
@@ -104,6 +119,7 @@ class OnlineTrainer:
             "pending": len(self._pending),
             "interactions_per_burst": _INTERACTIONS_PER_BURST,
             "has_replay_corpus": bool(self._replay_text),
+            "teacher_reviewed_available": _TEACHER_REVIEWED_PATH.exists(),
         }
 
     def log_interaction(self, child_message: str, reply: str) -> None:
@@ -129,7 +145,12 @@ class OnlineTrainer:
         pending_block = "\n".join(
             f"Child: {child}\nRosey: {reply}\n" for child, reply in pending
         )
-        mixed_text = self._sample_replay_chunk() + "\n" + (pending_block * _PENDING_REPEATS)
+        teacher_block = self._sample_teacher_reviewed_block()
+        mixed_text = (
+            self._sample_replay_chunk()
+            + "\n" + (pending_block * _PENDING_REPEATS)
+            + "\n" + (teacher_block * _TEACHER_REPEATS)
+        )
 
         encoded = self._tokenizer.encode(mixed_text)
         if len(encoded) <= self._block_size + 1:
@@ -163,6 +184,34 @@ class OnlineTrainer:
             finally:
                 self.is_training = False
                 self._model.eval()
+
+    def _sample_teacher_reviewed_block(self) -> str:
+        """Reads (never writes) teacher_reviewed.jsonl -- see module
+        docstring. Pure file I/O; safe to call even if the file doesn't
+        exist (no teacher_review_loop.py has been run) or is being actively
+        appended to by that separate process concurrently.
+        """
+        if not _TEACHER_REVIEWED_PATH.exists():
+            return ""
+        try:
+            lines = _TEACHER_REVIEWED_PATH.read_text(encoding="utf-8").splitlines()
+        except OSError:
+            return ""
+
+        recent = lines[-_TEACHER_RECENT_LIMIT:]
+        pairs = []
+        for line in recent:
+            if not line.strip():
+                continue
+            try:
+                entry = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            reply = entry.get("reviewed_reply") or entry.get("original_reply")
+            if entry.get("child") and reply:
+                pairs.append((entry["child"], reply))
+
+        return "\n".join(f"Child: {c}\nRosey: {r}\n" for c, r in pairs)
 
     def _sample_replay_chunk(self) -> str:
         if not self._replay_text or len(self._replay_text) <= _REPLAY_CHUNK_CHARS:
