@@ -38,6 +38,7 @@ _TOPIC_KEYWORDS: list[tuple[str, list[str]]] = [
     ("science", ["planet", "space", "solar system", "moon", "star", "atom", "gravity", "volcano", "ocean current"]),
     ("animals", ["animal", " dog", " cat ", "whale", "lion", "elephant", " bird", " fish", "puppy", "kitten"]),
     ("reading", ["spell", "spelling", "vocabulary", "what does the word", "book report", "poem", "rhyme"]),
+    ("columbus", ["christopher columbus", "columbus come", "columbus sail", "columbus discover", "columbus get to america"]),
 ]
 
 _NUMBER_RE = re.compile(r"\d+")

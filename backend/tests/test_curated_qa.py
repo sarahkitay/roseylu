@@ -48,3 +48,34 @@ def test_fuzzy_fallback_does_not_confuse_similar_but_different_words():
     # tuned to fall just under the 0.88 threshold). A false-positive fuzzy
     # match here would confidently hand back a wrong-subject answer.
     assert find_answer("what is friction") is None
+
+
+# Regression coverage for a real gap found live: "which word is a synonym
+# for gift: store, cat, present, ocean and what is a synonym" matched the
+# generic ENGLISH "what is a synonym" keyword entry (a real substring of the
+# message) and completely ignored the specific, answerable question asked
+# first. A specific question should never lose to a generic definition just
+# because both happen to share a substring.
+def test_synonym_multiple_choice_answers_the_specific_question():
+    answer = find_answer("which word is a synonym for gift: store, cat, present, ocean and what is a synonym")
+    assert answer is not None
+    assert "'present'" in answer
+    assert "store" in answer and "cat" in answer and "ocean" in answer
+    # the tacked-on question fragment must not be treated as an answer choice
+    other_options = answer.split("(")[1].split(")")[0]
+    assert "synonym" not in other_options
+
+
+def test_synonym_question_without_options_gives_an_example():
+    answer = find_answer("what is a synonym for happy")
+    assert answer is not None
+    assert "happy" in answer
+
+
+def test_synonym_question_for_uncurated_word_falls_through():
+    # "ubiquitous" isn't in the small curated synonym vocabulary -- must
+    # fall through to the generic definition rather than returning nothing
+    # or a wrong answer.
+    answer = find_answer("what is a synonym for ubiquitous")
+    assert answer is not None
+    assert "almost the same thing" in answer  # the generic ENGLISH definition

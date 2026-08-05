@@ -19,6 +19,10 @@ def test_science_detected():
     assert classify("tell me about the solar system") == "science"
 
 
+def test_columbus_detected():
+    assert classify("how did christopher columbus get to america") == "columbus"
+
+
 def test_no_match_returns_none():
     assert classify("i got in a fight with my best friend") is None
 

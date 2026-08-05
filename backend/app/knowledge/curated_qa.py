@@ -49,17 +49,22 @@ class QAEntry:
 HISTORY: list[QAEntry] = [
     QAEntry(
         "history", "columbus",
-        ["christopher columbus", "columbus come", "columbus sail", "columbus discover"],
-        "Christopher Columbus was an explorer from Italy who sailed for Spain. In 1492, he "
-        "led three ships -- the Nina, the Pinta, and the Santa Maria -- across the Atlantic "
-        "Ocean, hoping to find a faster trade route to Asia. Instead, he landed in the "
-        "Caribbean, in what was, to Europeans, an entirely unknown part of the world. His "
-        "voyages opened the door to widespread European exploration and settlement of the "
-        "Americas -- but it's worth knowing that millions of Indigenous people already lived "
-        "there, with their own long histories, and this contact eventually led to great harm "
-        "to those communities. That's why some people celebrate Columbus as an explorer and "
-        "others focus on the impact his arrival had on Indigenous peoples -- both parts are "
-        "true and worth thinking about."
+        ["christopher columbus", "columbus come", "columbus sail", "columbus discover", "columbus get to america"],
+        "Picture this: after 10 whole weeks sailing across open ocean with no land in sight, "
+        "Christopher Columbus and his crew finally spotted it on October 12, 1492. He'd sailed "
+        "from Spain with three ships -- the Nina, the Pinta, and the Santa Maria -- trying to "
+        "find a faster trade route to Asia by going west instead of the usual route around "
+        "Africa. When he landed on an island in the Caribbean, he named it San Salvador ('Holy "
+        "Savior') and claimed it for Spain. Here's the twist that changed history: Columbus was "
+        "completely convinced he'd landed near India. He hadn't -- he'd stumbled onto a "
+        "continent no European had ever known existed -- but because he believed it, he called "
+        "the people he met there 'Indians.' That mistaken name ended up sticking for Indigenous "
+        "peoples across the Americas for hundreds of years. His voyages opened the door to "
+        "massive European exploration and settlement -- but millions of Indigenous people "
+        "already lived there, with their own rich histories going back thousands of years, and "
+        "what came after brought devastating harm to those communities. That's why some people "
+        "remember Columbus mainly as a bold explorer, and others focus on the harm that "
+        "followed his arrival -- both parts of the story are true."
     ),
     QAEntry(
         "history", "thanksgiving_pilgrims",
@@ -546,8 +551,94 @@ _MIN_ANCHOR_LENGTH = 5  # skip fuzzy-matching short/common words -- unstable rat
 
 _WORD_RE = re.compile(r"[a-z]+")
 
+# Small, curated synonym groups for common elementary vocabulary -- not a
+# real thesaurus, just enough to answer the specific quiz-style question
+# format below ("which word is a synonym for X: A, B, C, D"). Bidirectional
+# by construction: each group lists words that are synonyms OF EACH OTHER,
+# so "gift" and "present" are each other's answer.
+_SYNONYM_GROUPS: list[set[str]] = [
+    {"happy", "glad", "joyful", "cheerful", "pleased", "content"},
+    {"sad", "unhappy", "upset", "gloomy", "down"},
+    {"big", "large", "huge", "giant", "enormous", "massive"},
+    {"small", "tiny", "little", "petite", "miniature"},
+    {"fast", "quick", "speedy", "rapid", "swift"},
+    {"slow", "sluggish", "unhurried", "gradual"},
+    {"gift", "present"},
+    {"smart", "intelligent", "clever", "bright"},
+    {"funny", "hilarious", "amusing", "comical"},
+    {"scared", "afraid", "frightened", "terrified"},
+    {"angry", "mad", "furious", "irritated"},
+    {"pretty", "beautiful", "lovely", "attractive"},
+    {"tired", "exhausted", "sleepy", "weary"},
+    {"loud", "noisy", "booming"},
+    {"quiet", "silent", "hushed", "still"},
+    {"strong", "powerful", "sturdy", "mighty"},
+    {"begin", "start", "commence"},
+    {"end", "finish", "conclude"},
+    {"old", "ancient", "aged"},
+    {"new", "fresh", "modern", "recent"},
+]
+_SYNONYM_OF: dict[str, set[str]] = {}
+for _group in _SYNONYM_GROUPS:
+    for _word in _group:
+        _SYNONYM_OF[_word] = _group - {_word}
+
+_SYNONYM_QUESTION_RE = re.compile(r"synonym for (\w+)\s*[:\-]?\s*(.*)", re.IGNORECASE)
+
+
+def _answer_synonym_question(message: str) -> str | None:
+    """Handles "which word is a synonym for X: A, B, C, D" -- a very common
+    elementary English quiz format. Found necessary live: a compound message
+    ending in "...and what is a synonym" was matching the generic ENGLISH
+    "what is a synonym" keyword entry and completely ignoring the specific,
+    answerable question asked first. A specific, checkable question should
+    never lose to a generic definition just because both happen to share a
+    substring -- this runs BEFORE the keyword table in find_answer() for
+    exactly that reason.
+
+    Returns None (falls through to the rest of find_answer(), including the
+    generic definition) if there's no "synonym for X" phrasing, or X isn't
+    in the small curated vocabulary above -- this is intentionally narrow,
+    not a general synonym solver.
+    """
+    match = _SYNONYM_QUESTION_RE.search(message.lower())
+    if not match:
+        return None
+
+    target = match.group(1)
+    synonyms = _SYNONYM_OF.get(target)
+    if not synonyms:
+        return None
+
+    options_text = match.group(2)
+    if not options_text.strip():
+        example = sorted(synonyms)[0]
+        return f"A synonym for '{target}' could be '{example}' -- they mean close to the same thing."
+
+    # single words only -- a real multiple-choice option list is never a
+    # multi-word phrase, and this is exactly what strips a trailing
+    # question fragment like "...and what is a synonym" tacked onto the
+    # same message from being treated as one of the answer choices.
+    options = [w.strip(" .?!") for w in re.split(r",| and ", options_text) if w.strip(" .?!")]
+    options = [o for o in options if " " not in o]
+    correct = [opt for opt in options if opt in synonyms]
+    if not correct:
+        return None
+
+    other_options = [o for o in options if o != correct[0]]
+    verb = "means" if len(other_options) == 1 else "mean"
+    return (
+        f"'{correct[0]}' is the synonym for '{target}' -- they both mean close to the same thing. "
+        f"The other word{'s' if len(other_options) != 1 else ''} "
+        f"({', '.join(other_options)}) {verb} something completely different."
+    )
+
 
 def find_answer(message: str) -> str | None:
+    specific = _answer_synonym_question(message)
+    if specific:
+        return specific
+
     text = message.lower()
     for entry in ALL_ENTRIES:
         if any(kw in text for kw in entry.keywords):
