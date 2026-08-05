@@ -80,10 +80,16 @@ def handle_chat_turn(
             topic = topic_classifier.classify(message)
             topic_numbers = topic_classifier.extract_numbers(message, topic) if topic else []
 
-            templated = topic_responses.build_templated_answer(topic, topic_numbers) if topic else None
+            templated = topic_responses.build_templated_answer(topic, topic_numbers, message) if topic else None
             curated = curated_qa.find_answer(message, tier=child.age_tier) if templated is None else None
             if templated is not None:
                 reply = templated
+                if topic_responses.needs_illustration_suppressed(topic, message):
+                    # e.g. multi-digit addition -- the penny-counting scene
+                    # would try to render one coin per unit (62 coins for
+                    # "24 + 38"), which is worse than no illustration.
+                    topic = None
+                    topic_numbers = []
             elif curated is not None:
                 # Curated History/English/Math answers (app/knowledge/curated_qa.py)
                 # -- same reasoning as the math templates above, extended
