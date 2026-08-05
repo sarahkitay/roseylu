@@ -26,6 +26,11 @@ _TOPIC_KEYWORDS: list[tuple[str, list[str]]] = [
     ("addition", ["plus", "add ", "adding", "addition", " sum ", "altogether", "combine", "in total", "how many in all"]),
     ("subtraction", ["minus", "subtract", "subtraction", "take away", "how many are left", "difference between"]),
     ("multiplication", ["times", "multiply", "multiplication", "groups of", "product of"]),
+    # "how many groups of" deliberately excluded -- it's a substring collision
+    # with multiplication's "groups of" keyword, which is checked first in
+    # this list, so it would never actually reach this row.
+    ("division", ["divide", "division", "divided by", "divided into", "split evenly",
+                  "share equally"]),
     ("fractions", ["fraction", "numerator", "denominator", "half of", "quarter of", "slices of"]),
     # "square" deliberately excluded as a bare keyword -- it's overloaded
     # with math operations ("square root", "3 squared", "what is an
@@ -47,6 +52,7 @@ _DEFAULT_NUMBERS = {
     "addition": (3, 2),
     "subtraction": (5, 2),
     "multiplication": (3, 4),
+    "division": (12, 4),
     "fractions": (1, 4),
 }
 

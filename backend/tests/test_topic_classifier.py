@@ -15,6 +15,20 @@ def test_fractions_detected():
     assert classify("can you explain fractions") == "fractions"
 
 
+def test_division_detected():
+    assert classify("what about division") == "division"
+    assert classify("how do i divide 12 by 4") == "division"
+    assert classify("can we split evenly 10 candies") == "division"
+
+
+# "how many groups of" is not a division keyword -- multiplication's
+# "groups of" is checked first in the topic list, so a division-flavored
+# phrasing that happens to contain that substring resolves to multiplication
+# instead. Documented as a known, accepted ambiguity, not a bug.
+def test_groups_of_phrasing_resolves_to_multiplication_not_division():
+    assert classify("how many groups of 3 fit in 12") == "multiplication"
+
+
 def test_science_detected():
     assert classify("tell me about the solar system") == "science"
 
@@ -51,6 +65,10 @@ def test_extract_numbers_from_message():
 
 def test_extract_numbers_falls_back_to_topic_default():
     assert extract_numbers("how do i do addition for class", "addition") == [3, 2]
+
+
+def test_extract_numbers_falls_back_to_division_default():
+    assert extract_numbers("what about division", "division") == [12, 4]
 
 
 def test_extract_numbers_ignores_out_of_range_values():

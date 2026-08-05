@@ -25,6 +25,23 @@ def test_fractions_answer_preserves_numerator_denominator_order():
     assert "1/4" in answer
 
 
+def test_division_answer_is_numerically_correct_with_no_remainder():
+    answer = build_templated_answer("division", [12, 4])
+    assert answer is not None
+    assert "3" in answer
+    assert "remainder" not in answer.lower()
+
+
+def test_division_answer_reports_remainder_when_not_even():
+    answer = build_templated_answer("division", [13, 4])
+    assert answer is not None
+    assert "3" in answer and "remainder 1" in answer.lower()
+
+
+def test_division_by_zero_returns_none():
+    assert build_templated_answer("division", [5, 0]) is None
+
+
 def test_unknown_topic_returns_none():
     assert build_templated_answer("science", [3, 5]) is None
     assert build_templated_answer(None, []) is None
@@ -106,6 +123,12 @@ def test_preschool_multiplication_and_fractions_redirect_instead_of_explaining()
     assert "bigger kids" in frac.lower()
     assert "12" not in mult  # doesn't leak the actual product
     assert "1/4" not in frac  # doesn't leak the actual fraction
+
+
+def test_preschool_division_redirects_instead_of_explaining():
+    answer = build_templated_answer("division", [12, 4], tier=AgeTier.PRESCHOOL)
+    assert "bigger kids" in answer.lower()
+    assert "divided" not in answer.lower()  # doesn't leak the actual division explanation
 
 
 def test_middle_tier_addition_is_unaffected_by_preschool_changes():

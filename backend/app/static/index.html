@@ -710,6 +710,39 @@ function buildMultiplicationScene(numbers) {
   </svg>`;
 }
 
+function buildDivisionScene(numbers) {
+  const [a, b] = numbers.length === 2 ? numbers : [12, 4];
+  const quotient = Math.floor(a / b);
+  const remainder = a - quotient * b;
+  let items = "";
+  let delay = 0;
+  const boxW = 56, gap = 10;
+  for (let g = 0; g < b; g++) {
+    const bx = 14 + g * (boxW + gap);
+    items += `<rect x="${bx}" y="10" width="${boxW}" height="62" rx="10" fill="#FFF3D6" stroke="${INK}" stroke-width="3"/>`;
+    for (let i = 0; i < quotient; i++) {
+      const dx = bx + 16 + (i % 3) * 16;
+      const dy = 28 + Math.floor(i / 3) * 16;
+      items += dotSVG(dx, dy, delay);
+      delay += 0.05;
+    }
+  }
+  const leftoverX = 14 + b * (boxW + gap);
+  let leftover = "";
+  for (let i = 0; i < remainder; i++) {
+    leftover += dotSVG(leftoverX + 12 + i * 20, 40, delay);
+    delay += 0.05;
+  }
+  const w = leftoverX + (remainder > 0 ? remainder * 20 + 24 : 14);
+  const caption = remainder > 0
+    ? `${a} ÷ ${b} = ${quotient} remainder ${remainder}`
+    : `${a} ÷ ${b} = ${quotient}`;
+  return `<svg viewBox="0 0 ${w} 92" xmlns="http://www.w3.org/2000/svg">
+    ${items}${leftover}
+    <text x="${w / 2}" y="86" font-size="12" text-anchor="middle" fill="${INK}" font-family="sans-serif">${caption}</text>
+  </svg>`;
+}
+
 function buildFractionsScene(numbers) {
   let [num, denom] = numbers.length === 2 ? numbers : [1, 4];
   denom = Math.max(2, Math.min(denom, 8));
@@ -838,6 +871,7 @@ const ILLUSTRATION_BUILDERS = {
   addition: buildAdditionScene,
   subtraction: buildSubtractionScene,
   multiplication: buildMultiplicationScene,
+  division: buildDivisionScene,
   fractions: buildFractionsScene,
   shapes: () => buildShapesScene(),
   science: () => buildScienceScene(),

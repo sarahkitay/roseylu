@@ -10,7 +10,7 @@ though the topic classifier and illustration for that same message were
 both correct). Chasing this further with more training runs hit
 diminishing, inconsistent returns -- see training/README.md's run-to-run
 variance discussion. This takes a different approach for the subset of
-questions where it's actually tractable: for the four numeric math topics,
+questions where it's actually tractable: for the five numeric math topics,
 `topic_classifier.extract_numbers()` already gives real, correct numbers,
 and the arithmetic answer to "3 plus 2" is not a language-modeling problem.
 Building the sentence directly from those numbers is strictly more reliable
@@ -197,6 +197,23 @@ def build_templated_answer(
             f"Think of it as {a} groups with {b} things in each group. Instead of "
             f"counting them one at a time, {a} times {b} gives you the total right "
             f"away: {a * b}."
+        )
+    if topic == "division":
+        if tier == AgeTier.PRESCHOOL:
+            return _preschool_redirect("division")
+        if b == 0:
+            return None
+        quotient, remainder = divmod(a, b)
+        if remainder == 0:
+            return (
+                f"Think of it as sharing {a} things evenly into {b} groups. Hand them out "
+                f"one at a time until they're gone -- each group ends up with {quotient}, "
+                f"so {a} divided by {b} is {quotient}."
+            )
+        return (
+            f"Think of it as sharing {a} things evenly into {b} groups. Hand them out one "
+            f"at a time -- each group gets {quotient}, with {remainder} left over that "
+            f"can't split evenly, so {a} divided by {b} is {quotient} remainder {remainder}."
         )
     if topic == "fractions":
         if tier == AgeTier.PRESCHOOL:
