@@ -487,6 +487,42 @@ MATH: list[QAEntry] = [
         "line where every point is exactly the same distance from the center. That "
         "distance from the center to the edge is called the radius."
     ),
+    # "What is [advanced math branch]" cluster -- added together after
+    # "how does calculus work" surfaced the same gap pattern as everything
+    # else in this file: a curious kid asking about a subject by name, well
+    # past what synthetic_dialogues.py happens to cover, producing
+    # incoherent text. Kids curious enough to ask about calculus tend to ask
+    # about its neighbors too, so covering the cluster now beats fixing one
+    # more of these next week.
+    QAEntry(
+        "math", "calculus",
+        ["how does calculus work", "what is calculus"],
+        "Calculus is the math of change and accumulation. One half, called derivatives, "
+        "tells you how fast something is changing at a single instant -- like your car's "
+        "speedometer showing your exact speed right now, not just your average speed for "
+        "the whole trip. The other half, called integrals, adds up tiny pieces to find a "
+        "total -- like figuring out the exact area under a curvy line instead of a simple "
+        "shape. It's usually taught in high school or college, built on algebra and "
+        "geometry you learn first."
+    ),
+    QAEntry(
+        "math", "trigonometry",
+        ["what is trigonometry", "how does trigonometry work"],
+        "Trigonometry studies the relationships between the angles and sides of triangles, "
+        "especially right triangles. It's built around three key ratios -- sine, cosine, "
+        "and tangent -- that let you figure out a missing side or angle if you know enough "
+        "about the others. It's used a lot in fields like architecture, navigation, and "
+        "video game graphics, anywhere you need to calculate angles and distances precisely."
+    ),
+    QAEntry(
+        "math", "statistics",
+        ["what is statistics", "what does statistics mean"],
+        "Statistics is the math of collecting, organizing, and making sense of data -- "
+        "numbers and information about the real world. It helps answer questions like "
+        "'what's typical?' (using averages), 'how spread out are these results?', or 'how "
+        "confident can we be in this conclusion?' Every time you see a poll, a batting "
+        "average, or a weather forecast's chance of rain, that's statistics at work."
+    ),
 ]
 
 ALL_ENTRIES: list[QAEntry] = HISTORY + ENGLISH + MATH
