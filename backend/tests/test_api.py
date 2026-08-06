@@ -33,6 +33,20 @@ def test_chat_allow_path():
     assert len(body["reply"]) > 0
 
 
+# Regression coverage for a real gap found live: "my dog died" correctly
+# got the curated grief answer, but topic_classifier.py's unrelated
+# "animals" keyword ("dog") also matched the same message, which would
+# otherwise pair a grief answer with a cheerful, unrelated critter cartoon.
+def test_chat_life_topic_answer_has_no_mismatched_illustration():
+    resp = client.post("/chat", json={"child": _child(age=4), "message": "my dog died"})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["action"] == "ALLOW"
+    assert "sorry" in body["reply"].lower()
+    assert body["topic"] is None
+    assert body["topic_numbers"] == []
+
+
 def test_chat_math_topic_uses_templated_answer_not_the_model(monkeypatch):
     # The generative model should never even be called for a numeric math
     # topic -- if it were, this stub's obviously-wrong text would leak
@@ -81,8 +95,13 @@ class _RiskyStubBackend:
 
 
 def test_chat_output_side_check_catches_unsafe_generation(monkeypatch):
+    # "why is the sky blue" used to be the message here, but it's now a
+    # curated SCIENCE answer (see curated_qa.py) that never reaches
+    # DEFAULT_BACKEND at all -- this test specifically needs a message with
+    # no curated/templated match so the mocked risky backend actually gets
+    # called and the output-side check has something to catch.
     monkeypatch.setattr(orchestrator_module, "DEFAULT_BACKEND", _RiskyStubBackend())
-    resp = client.post("/chat", json={"child": _child(), "message": "why is the sky blue"})
+    resp = client.post("/chat", json={"child": _child(), "message": "what is your favorite color"})
     assert resp.status_code == 200
     body = resp.json()
     # the CHILD's message was benign, but the model's own output tripped

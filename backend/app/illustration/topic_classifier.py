@@ -40,7 +40,8 @@ _TOPIC_KEYWORDS: list[tuple[str, list[str]]] = [
     # collision.
     ("shapes", ["shape", "circle", "triangle", "rectangle", "geometry", "sides does", "angle",
                 "square shape", "draw a square", "square have", "corners does a square"]),
-    ("science", ["planet", "space", "solar system", "moon", "star", "sun", "atom", "gravity", "volcano", "ocean current"]),
+    ("science", ["planet", "space", "solar system", "moon", "star", "sun", "sky", "atom",
+                 "gravity", "volcano", "ocean current"]),
     ("animals", ["animal", " dog", " cat ", "whale", "lion", "elephant", " bird", " fish", "puppy", "kitten"]),
     ("reading", ["spell", "spelling", "vocabulary", "what does the word", "book report", "poem", "rhyme"]),
     ("columbus", ["christopher columbus", "columbus come", "columbus sail", "columbus discover", "columbus get to america"]),

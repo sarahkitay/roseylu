@@ -94,13 +94,21 @@ def handle_chat_turn(
                     topic = None
                     topic_numbers = []
             elif curated is not None:
-                # Curated History/English/Math answers (app/knowledge/curated_qa.py)
-                # -- same reasoning as the math templates above, extended
-                # past pure arithmetic: the local model has no reliable
-                # general knowledge at this training scale (see
-                # training/README.md), so well-known curriculum topics get a
-                # hand-written, correct answer instead of a generated guess.
+                # Curated History/English/Math/Life/Science answers
+                # (app/knowledge/curated_qa.py) -- same reasoning as the math
+                # templates above, extended past pure arithmetic: the local
+                # model has no reliable general knowledge at this training
+                # scale (see training/README.md), so well-known curriculum
+                # (and common emotional/family) topics get a hand-written,
+                # correct answer instead of a generated guess.
                 reply = curated
+                if curated_qa.is_life_topic(message):
+                    # e.g. "my dog died" -- topic_classifier's "animals"
+                    # keyword ("dog") still matches this message even though
+                    # a LIFE entry answered it, which would otherwise pair a
+                    # grief answer with a cheerful, unrelated critter scene.
+                    topic = None
+                    topic_numbers = []
             else:
                 system_prompt = build_system_prompt(child)
                 reply = DEFAULT_BACKEND.generate(system_prompt, message)

@@ -80,6 +80,49 @@ def test_unmatched_message_returns_none():
     assert find_answer("i got in a fight with my best friend") is None
 
 
+# Grief gets full 4-tier treatment (like why_do_parents_yell) because the
+# right wording differs most sharply at the youngest tier -- child-grief
+# guidance flags euphemisms like "went to sleep" as actively confusing/scary
+# for young children, so PRESCHOOL is deliberately explicit that the pet
+# isn't coming back, without being graphic about it.
+def test_grief_is_tiered_and_preschool_avoids_sleep_euphemism():
+    preschool = find_answer("my dog died", tier=AgeTier.PRESCHOOL)
+    teen = find_answer("my dog died", tier=AgeTier.TEEN)
+    assert preschool != teen
+    assert "asleep" not in preschool.lower() and "went to sleep" not in preschool.lower()
+    assert "stops working" in preschool.lower() or "stopped working" in preschool.lower()
+
+
+def test_why_is_the_sky_blue_gets_a_relevant_curated_answer():
+    # regression coverage: this exact question produced garbled text about
+    # sunlight/atmosphere/scattering from the generative model before this
+    # SCIENCE entry existed -- now it should get the real explanation.
+    answer = find_answer("why is the sky blue")
+    assert answer is not None
+    assert "scatter" in answer.lower()
+
+
+def test_what_is_the_moon_and_gravity_get_relevant_curated_answers():
+    moon = find_answer("what is the moon")
+    gravity = find_answer("what is gravity")
+    assert moon is not None and "orbit" in moon.lower()
+    assert gravity is not None and "pull" in gravity.lower()
+
+
+# Regression coverage for a real bug caught by test_unmatched_message_returns_none
+# while adding the LIFE category: the fuzzy fallback's "longest word in a
+# keyword phrase is the one worth typo-tolerating" heuristic picked "friend"
+# as the anchor for the friend_wont_play_with_me entry, which meant ANY
+# message merely containing the word "friend" -- not just a typo of some
+# distinctive word -- got hijacked into that canned answer via an exact
+# (non-typo) match. Unrelated benign messages must not be swept into an
+# emotionally-specific canned reply just because they share a common word.
+def test_unrelated_message_containing_a_common_life_keyword_is_not_hijacked():
+    assert find_answer("i got in a fight with my best friend") is None
+    assert find_answer("i'm scared of spiders") is None
+    assert find_answer("i made a mistake on my homework") is None
+
+
 def test_every_entry_has_a_working_keyword():
     # each entry's own first keyword should route back to itself -- catches
     # copy-paste keyword collisions between entries (an earlier entry

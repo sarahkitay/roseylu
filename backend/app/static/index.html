@@ -100,13 +100,28 @@
   #hero-avatar-btn:active { transform: scale(0.96); }
   .avatar-hero {
     width: 116px; height: 116px;
-    animation: idle-bounce 2.6s ease-in-out infinite;
     filter: drop-shadow(0 6px 8px rgba(0,0,0,0.15));
   }
+  /* Idle style is selectable per-character (see IDLE_STYLE_OPTIONS) -- the
+     class is applied/swapped in JS from character.idleStyle, defaulting to
+     "bounce" so existing saved characters (no idleStyle key) look exactly
+     as before. .talking always overrides whichever idle class is present. */
+  .avatar-hero.idle-bounce { animation: idle-bounce 2.6s ease-in-out infinite; }
+  .avatar-hero.idle-sway { animation: idle-sway 3.4s ease-in-out infinite; }
+  .avatar-hero.idle-wiggle { animation: idle-wiggle 2.4s ease-in-out infinite; }
   .avatar-hero.talking { animation: talk-bounce 0.5s ease-in-out infinite; }
   @keyframes idle-bounce {
     0%, 100% { transform: translateY(0) scale(1); }
     50% { transform: translateY(-5px) scale(1.01); }
+  }
+  @keyframes idle-sway {
+    0%, 100% { transform: rotate(0deg); }
+    50% { transform: rotate(5deg); }
+  }
+  @keyframes idle-wiggle {
+    0%, 15%, 100% { transform: rotate(0deg) translateY(0); }
+    5% { transform: rotate(-7deg) translateY(-2px); }
+    10% { transform: rotate(7deg) translateY(-2px); }
   }
   @keyframes talk-bounce {
     0%, 100% { transform: translateY(0) scale(1); }
@@ -148,6 +163,7 @@
      to an unrelated diagram sitting in its own separate box. ---- */
   .rosey-turn { display: flex; justify-content: flex-start; }
   .rosey-card {
+    position: relative;
     max-width: 82%;
     background: var(--rosey-bubble); color: var(--rosey-bubble-text);
     border-radius: 18px; border-bottom-left-radius: 4px;
@@ -190,6 +206,17 @@
   .strike-fade { animation: strike-fade 0.4s ease both; }
   @keyframes strike-fade { from { opacity: 1; } to { opacity: 0.28; } }
   .strike-x { animation: pop-in 0.3s ease both; }
+
+  /* Quiz-completion celebration burst (see maybeCelebrate()) -- a handful
+     of sparkle emoji scattered over the card, each popping outward and
+     fading, removed from the DOM once the animation finishes. */
+  .celebrate-burst { position: absolute; inset: 0; pointer-events: none; overflow: visible; }
+  .celebrate-spark { position: absolute; font-size: 20px; animation: spark-pop 0.9s ease-out both; }
+  @keyframes spark-pop {
+    0% { opacity: 0; transform: translateY(0) scale(0.4) rotate(0deg); }
+    30% { opacity: 1; }
+    100% { opacity: 0; transform: translateY(-46px) scale(1.15) rotate(30deg); }
+  }
 
   footer {
     padding: 12px 20px 18px; background: var(--panel); border-top: 1px solid var(--border);
@@ -320,6 +347,10 @@
       <div class="label">Accessory color</div>
       <div class="swatch-grid" id="opt-accessoryColor"></div>
     </div>
+    <div class="option-group">
+      <div class="label">Idle animation</div>
+      <div class="swatch-grid" id="opt-idleStyle"></div>
+    </div>
 
     <div id="designer-actions">
       <button type="button" id="btn-randomize">🎲 Randomize</button>
@@ -335,7 +366,7 @@
    ========================================================================= */
 const PALETTE = [
   "#58CC02", "#1CB0F6", "#FF4B4B", "#FFC800", "#CE82FF", "#FF86D0", "#FF9600", "#2EC4B6",
-  "#8B5A2B", "#6C63FF",
+  "#8B5A2B", "#6C63FF", "#95D5B2", "#FF6F59",
 ];
 const INK = "#2a2622";
 
@@ -345,6 +376,8 @@ const BODY_SHAPE_OPTIONS = [
   { value: "egg", label: "🥚 Egg" },
   { value: "cloud", label: "☁️ Cloud" },
   { value: "square", label: "🟦 Square" },
+  { value: "star", label: "⭐ Star" },
+  { value: "diamond", label: "🔷 Diamond" },
 ];
 const EYE_OPTIONS = [
   { value: "round", label: "👀 Round" },
@@ -353,6 +386,8 @@ const EYE_OPTIONS = [
   { value: "star", label: "✨ Star" },
   { value: "heart", label: "😍 Heart" },
   { value: "determined", label: "🧐 Determined" },
+  { value: "big", label: "😲 Big" },
+  { value: "happy", label: "😄 Happy" },
 ];
 const MOUTH_OPTIONS = [
   { value: "smile", label: "🙂 Smile" },
@@ -361,6 +396,8 @@ const MOUTH_OPTIONS = [
   { value: "surprised", label: "😮 Surprised" },
   { value: "laugh", label: "😆 Laugh" },
   { value: "smirk", label: "😏 Smirk" },
+  { value: "tongue", label: "😛 Tongue" },
+  { value: "whistle", label: "😗 Whistle" },
 ];
 const ACCESSORY_OPTIONS = [
   { value: "none", label: "— None" },
@@ -371,6 +408,13 @@ const ACCESSORY_OPTIONS = [
   { value: "crown", label: "👑 Crown" },
   { value: "headphones", label: "🎧 Headphones" },
   { value: "mustache", label: "🥸 Mustache" },
+  { value: "bandana", label: "🧣 Bandana" },
+  { value: "backpack", label: "🎒 Backpack" },
+];
+const IDLE_STYLE_OPTIONS = [
+  { value: "bounce", label: "🐇 Bounce" },
+  { value: "sway", label: "🌾 Sway" },
+  { value: "wiggle", label: "🐝 Wiggle" },
 ];
 
 const DEFAULT_CONFIG = {
@@ -381,6 +425,7 @@ const DEFAULT_CONFIG = {
   mouthStyle: "smile",
   accessory: "none",
   accessoryColor: PALETTE[2],
+  idleStyle: "bounce",
 };
 
 function loadConfig() {
@@ -399,6 +444,10 @@ function bodyShapeMarkup(shape, color) {
   if (shape === "round") return `<circle cx="100" cy="106" r="78" ${common}/>`;
   if (shape === "egg") return `<ellipse cx="100" cy="104" rx="60" ry="82" ${common}/>`;
   if (shape === "square") return `<rect x="28" y="34" width="144" height="144" rx="34" ry="34" ${common}/>`;
+  if (shape === "diamond") return `<path d="M100,10 L190,102 L100,194 L10,102 Z" stroke-linejoin="round" ${common}/>`;
+  if (shape === "star") {
+    return `<path d="M100,14 L118,72 L182,72 L130,110 L150,172 L100,134 L50,172 L70,110 L18,72 L82,72 Z" stroke-linejoin="round" ${common}/>`;
+  }
   if (shape === "cloud") {
     return `<path d="M52,148 Q22,148 22,118 Q16,92 46,86 Q42,54 78,50 Q84,20 116,26 Q148,16 168,46 Q198,52 188,86 Q202,108 182,128 Q188,152 152,152 Q134,172 98,164 Q66,176 52,148 Z" ${common}/>`;
   }
@@ -437,6 +486,15 @@ function eyesMarkup(style, blink) {
         <circle cx="${cx}" cy="99" r="13" fill="#fff" stroke="${INK}" stroke-width="4"/>
         <circle cx="${cx}" cy="101" r="6.5" fill="${INK}"/>`;
     }
+    if (variant === "big") {
+      return `
+        <circle cx="${cx}" cy="97" r="20" fill="#fff" stroke="${INK}" stroke-width="4"/>
+        <circle cx="${cx+2}" cy="99" r="10" fill="${INK}"/>
+        <circle cx="${cx+6}" cy="94" r="3.2" fill="#fff"/>`;
+    }
+    if (variant === "happy") {
+      return `<path d="M${cx-14},100 Q${cx},82 ${cx+14},100" fill="none" stroke="${INK}" stroke-width="5" stroke-linecap="round"/>`;
+    }
     return `
       <circle cx="${cx}" cy="96" r="16" fill="#fff" stroke="${INK}" stroke-width="4"/>
       <circle cx="${cx+2}" cy="99" r="8" fill="${INK}"/>
@@ -453,6 +511,8 @@ function mouthMarkup(style, open) {
   if (style === "surprised") return `<ellipse cx="100" cy="143" rx="9" ry="9" fill="#3a2a20"/>`;
   if (style === "laugh") return `<path d="M68,134 Q100,172 132,134 Q100,148 68,134 Z" fill="#3a2a20"/><path d="M76,138 L124,138" stroke="#fff" stroke-width="5" stroke-linecap="round"/>`;
   if (style === "smirk") return `<path d="M80,140 Q100,150 116,135" fill="none" stroke="${INK}" stroke-width="5" stroke-linecap="round"/>`;
+  if (style === "tongue") return `<path d="M78,138 Q100,157 122,138" fill="none" stroke="${INK}" stroke-width="6" stroke-linecap="round"/><ellipse cx="100" cy="150" rx="8" ry="10" fill="#FF6F91" stroke="${INK}" stroke-width="2"/>`;
+  if (style === "whistle") return `<ellipse cx="100" cy="143" rx="7" ry="9" fill="none" stroke="${INK}" stroke-width="5"/>`;
   return `<path d="M78,138 Q100,157 122,138" fill="none" stroke="${INK}" stroke-width="6" stroke-linecap="round"/>`;
 }
 
@@ -501,6 +561,17 @@ function accessoryMarkup(accessory, color) {
       <path d="M72,128 Q80,118 92,127 Q100,122 108,127 Q120,118 128,128 Q116,136 104,129 Q100,133 96,129 Q84,136 72,128 Z"
             fill="#3a2a20" stroke="${INK}" stroke-width="2"/>`;
   }
+  if (accessory === "bandana") {
+    return `
+      <path d="M50,60 Q100,30 150,60 L150,78 Q100,54 50,78 Z" fill="${color}" stroke="${INK}" stroke-width="3"/>
+      <path d="M148,66 L168,74 L150,82 Z" fill="${color}" stroke="${INK}" stroke-width="2.5"/>`;
+  }
+  if (accessory === "backpack") {
+    return `
+      <path d="M40,150 Q30,110 55,100 L60,170 Q45,172 40,150 Z" fill="${color}" stroke="${INK}" stroke-width="3"/>
+      <line x1="70" y1="120" x2="78" y2="160" stroke="${INK}" stroke-width="3"/>
+      <line x1="130" y1="120" x2="122" y2="160" stroke="${INK}" stroke-width="3"/>`;
+  }
   return "";
 }
 
@@ -527,7 +598,15 @@ const designerNameInput = document.getElementById("designer-name-input");
 
 function renderHero(state) { heroAvatar.innerHTML = buildAvatarSVG(character, state); }
 function renderDesignerPreview() { designerPreview.innerHTML = buildAvatarSVG(draft, {}); }
-function renderIdentity() { stageName.textContent = character.name || "Rosey"; renderHero({}); }
+function applyIdleStyle() {
+  IDLE_STYLE_OPTIONS.forEach(opt => heroAvatar.classList.remove("idle-" + opt.value));
+  heroAvatar.classList.add("idle-" + (character.idleStyle || "bounce"));
+}
+function renderIdentity() {
+  stageName.textContent = character.name || "Rosey";
+  applyIdleStyle();
+  renderHero({});
+}
 
 renderIdentity();
 
@@ -594,6 +673,7 @@ function openDesigner(keepDraft) {
   buildOptionSwatches("opt-mouthStyle", "mouthStyle", MOUTH_OPTIONS);
   buildOptionSwatches("opt-accessory", "accessory", ACCESSORY_OPTIONS);
   buildColorSwatches("opt-accessoryColor", "accessoryColor");
+  buildOptionSwatches("opt-idleStyle", "idleStyle", IDLE_STYLE_OPTIONS);
   renderDesignerPreview();
   overlay.classList.add("open");
 }
@@ -613,6 +693,7 @@ document.getElementById("btn-randomize").addEventListener("click", () => {
   draft.eyeStyle = EYE_OPTIONS[Math.floor(Math.random() * EYE_OPTIONS.length)].value;
   draft.mouthStyle = MOUTH_OPTIONS[Math.floor(Math.random() * MOUTH_OPTIONS.length)].value;
   draft.accessory = ACCESSORY_OPTIONS[Math.floor(Math.random() * ACCESSORY_OPTIONS.length)].value;
+  draft.idleStyle = IDLE_STYLE_OPTIONS[Math.floor(Math.random() * IDLE_STYLE_OPTIONS.length)].value;
   openDesigner(true);
 });
 
@@ -967,10 +1048,40 @@ function addRoseyBubble(action, illustration) {
 
   thread.appendChild(wrap);
   scrollToBottom();
-  return { bubble, mini, illustrationCardEl, frames };
+  return { bubble, mini, illustrationCardEl, frames, card };
 }
 
-function typewriterReveal(fullText, bubble, mini, illustrationCardEl, frames) {
+// Scatters a handful of sparkle emoji over a card and lets the CSS
+// animation (spark-pop) carry them out; the burst element removes itself
+// once the animation is done so repeated celebrations don't pile up nodes.
+function celebrateOn(card) {
+  const burst = document.createElement("div");
+  burst.className = "celebrate-burst";
+  const emoji = ["✨", "🌟", "🎉"];
+  const count = 7;
+  for (let i = 0; i < count; i++) {
+    const spark = document.createElement("span");
+    spark.className = "celebrate-spark";
+    spark.textContent = emoji[i % emoji.length];
+    spark.style.left = `${8 + Math.random() * 80}%`;
+    spark.style.top = `${10 + Math.random() * 60}%`;
+    spark.style.animationDelay = `${(i * 0.06).toFixed(2)}s`;
+    burst.appendChild(spark);
+  }
+  card.appendChild(burst);
+  setTimeout(() => burst.remove(), 1100);
+}
+
+// Quiz completion is detected from the reply text itself (see
+// app/knowledge/quiz.py::handle_answer, which always ends a finished quiz
+// with this exact phrase) rather than a dedicated API field -- the backend
+// doesn't otherwise distinguish "quiz finished" from any other ALLOW reply,
+// and adding a field for one UI flourish wasn't worth a schema change.
+function maybeCelebrate(replyText, card) {
+  if (replyText.includes("That's the quiz!")) celebrateOn(card);
+}
+
+function typewriterReveal(fullText, bubble, mini, illustrationCardEl, frames, onComplete) {
   let i = 0;
   let shownFrame = 0;
   startTalking(mini);
@@ -1002,6 +1113,7 @@ function typewriterReveal(fullText, bubble, mini, illustrationCardEl, frames) {
       clearInterval(timer);
       bubble.textContent = fullText;
       stopTalking(mini);
+      if (onComplete) onComplete();
     }
   }, 24);
 }
@@ -1046,8 +1158,8 @@ async function sendMessage(message) {
     const data = await res.json();
     removeTyping();
     const illustration = data.topic ? buildIllustration(data.topic, data.topic_numbers) : null;
-    const { bubble, mini, illustrationCardEl, frames } = addRoseyBubble(data.action, illustration);
-    typewriterReveal(data.reply, bubble, mini, illustrationCardEl, frames);
+    const { bubble, mini, illustrationCardEl, frames, card } = addRoseyBubble(data.action, illustration);
+    typewriterReveal(data.reply, bubble, mini, illustrationCardEl, frames, () => maybeCelebrate(data.reply, card));
   } catch (err) {
     removeTyping();
     addRoseyBubble(null, null).bubble.textContent = "(couldn't reach the server -- is uvicorn still running?)";

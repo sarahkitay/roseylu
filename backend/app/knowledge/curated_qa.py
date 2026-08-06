@@ -53,6 +53,19 @@ class QAEntry:
     # docstring's honest accounting of why tiering everything wasn't done in
     # one pass. `answers_by_tier` is opt-in per entry; Columbus is the first
     # to use it, as the flagship example of what full tiering looks like.
+    fuzzy_eligible: bool = True
+    # False for the LIFE category: _fuzzy_find_answer's anchor heuristic
+    # (longest word in a keyword phrase = the word worth typo-tolerating)
+    # holds for rare curriculum vocabulary ("calculus", "pythagorean") but
+    # breaks for everyday emotional phrasing, where the longest word is
+    # often just a common feeling word ("friend", "scared") that a totally
+    # unrelated message could contain verbatim -- an EXACT match (ratio
+    # 1.0), not a typo, hijacking an unrelated message into the wrong canned
+    # answer. Found live via a test regression on "friend". Typo tolerance
+    # has low value for casual phrasing anyway (a misspelled "mommy" is a
+    # minor miss), while a false-positive emotional-topic mismatch is a
+    # worse outcome here than in any other category, so LIFE opts out of
+    # fuzzy matching entirely rather than trying to hand-tune anchors safe.
 
     def answer_for(self, tier: AgeTier | None) -> str:
         if tier is not None and tier in self.answers_by_tier:
@@ -335,6 +348,138 @@ LIFE: list[QAEntry] = [
                 "relative, or a counselor -- they can help you figure out what to do next."
             ),
         },
+        fuzzy_eligible=False,
+    ),
+    # Grief is the one topic here that gets full 4-tier treatment alongside
+    # why_do_parents_yell, not a single register -- the specific wording
+    # matters most at the youngest tier. Child-grief guidance (e.g. the
+    # National Alliance for Grieving Children, David Schonfeld's clinical
+    # work on how children understand death) consistently flags soft
+    # euphemisms like "went to sleep" or "went away" as actively harmful for
+    # young children -- they can produce a genuine fear of sleep or an
+    # expectation that the pet is coming back. That guidance (be honest and
+    # concrete, not clinical or graphic) shaped the PRESCHOOL wording below;
+    # it is not a substitute for a grieving child talking to a trusted adult.
+    QAEntry(
+        "life", "grief_pet_died",
+        [
+            "my pet died", "my dog died", "my cat died", "why did my pet die",
+            "why did my dog die", "why did my cat die", "my fish died", "my hamster died",
+        ],
+        "I'm really sorry -- losing a pet is genuinely sad, and however you're feeling "
+        "about it right now is okay. When a living thing dies, its body has completely "
+        "stopped working and can't start again, which is different from sleeping. It's "
+        "okay to miss them, to cry, and to talk about your favorite memories together. "
+        "It can help a lot to tell a grown-up you trust how you're feeling right now.",
+        answers_by_tier={
+            AgeTier.PRESCHOOL: (
+                "I'm really sorry your pet died -- that's a very sad thing, and it's okay "
+                "to feel sad or cry about it. When something dies, its body stops working "
+                "completely and can't start again -- that's different from sleeping, and "
+                "your pet isn't going to wake back up. It's okay to miss them and to talk "
+                "about the fun things you did together. Can you go find a grown-up for a "
+                "big hug right now?"
+            ),
+            AgeTier.EARLY: (
+                "I'm really sorry -- losing a pet is genuinely sad, and it's okay to feel "
+                "however you're feeling about it, even if that changes from day to day. "
+                "When a pet dies, its body has completely and permanently stopped working, "
+                "so it won't come back, and that's a hard thing to sit with. It can really "
+                "help to talk to a grown-up you trust about it, and to remember the good "
+                "times you had together."
+            ),
+            AgeTier.MIDDLE: (
+                "I'm sorry -- that's a real loss, and there's no one right way to feel "
+                "about it. Some people feel sad right away, some feel numb at first and sad "
+                "later, and both are normal. It can help to talk to someone you trust about "
+                "it instead of holding it in, and it's okay to keep thinking about your pet "
+                "and the good memories you have -- that doesn't mean you're not moving "
+                "forward, it just means the relationship mattered."
+            ),
+            AgeTier.TEEN: (
+                "I'm sorry -- grief over a pet is real grief, even though people sometimes "
+                "treat it as smaller than it is. There's no set timeline or 'right' way to "
+                "feel, and it's normal for it to come in waves rather than all at once. "
+                "Talking about it with someone you trust, rather than pushing it down, "
+                "tends to help more than people expect -- and if it's sitting heavier than "
+                "you'd expect for longer than feels okay, that's worth mentioning to a "
+                "school counselor or another adult too."
+            ),
+        },
+        fuzzy_eligible=False,
+    ),
+    QAEntry(
+        "life", "scared_of_the_dark",
+        ["scared of the dark", "afraid of the dark", "why am i scared of the dark",
+         "why am i afraid of the dark", "im scared of the dark"],
+        "Being scared of the dark is really common -- it happens because in the dark, our "
+        "imagination fills in what we can't see, and it usually fills it in with something "
+        "scarier than what's actually there. It doesn't mean anything is wrong with you. "
+        "A nightlight, a favorite stuffed animal, or asking a grown-up to check the room "
+        "with you can help a lot, and it's a fear most people grow out of with time.",
+        fuzzy_eligible=False,
+    ),
+    QAEntry(
+        "life", "nervous_before_a_test",
+        ["nervous before a test", "scared about a test", "test anxiety", "worried about a test",
+         "why am i nervous about a test", "why am i so nervous for a test"],
+        "Feeling nervous before a test is your body reacting to something that matters to "
+        "you -- it's actually a sign you care, not a sign something's wrong. A little bit "
+        "of nervousness can even help you focus. If it feels like a lot, a few slow deep "
+        "breaths right before can help calm your body down, and reminding yourself 'I "
+        "studied, I know some of this' works better than trying to not feel nervous at "
+        "all. Everyone feels this sometimes, even adults.",
+        fuzzy_eligible=False,
+    ),
+    QAEntry(
+        "life", "friend_wont_play_with_me",
+        [
+            "my friend doesn't want to play with me", "my friend wont play with me",
+            "why won't my friend play with me", "why doesn't my friend want to play with me",
+            "my best friend doesn't want to be my friend",
+        ],
+        "That's a genuinely hard feeling. Sometimes it's about something specific that can "
+        "get talked through, and sometimes friends just want to play with someone else that "
+        "day, which isn't the same as not liking you anymore. It's okay to ask them directly "
+        "-- 'did I do something?' or 'want to play later?' -- rather than guessing. And it "
+        "can really help to talk to a grown-up you trust about how it's making you feel, "
+        "especially if it keeps happening.",
+        fuzzy_eligible=False,
+    ),
+    QAEntry(
+        "life", "is_it_okay_to_feel_sad",
+        ["is it okay to feel sad", "why am i sad", "is it okay to be sad", "why do i feel sad"],
+        "Yes -- completely okay. Sadness is just as normal and important a feeling as "
+        "happiness; it's how your mind lets you know something matters to you. You don't "
+        "have to have a big reason for it, and you don't have to hide it or force yourself "
+        "to feel better right away. Talking about it with someone you trust, or just letting "
+        "yourself feel it for a while, are both fine ways to handle it.",
+        fuzzy_eligible=False,
+    ),
+    QAEntry(
+        "life", "why_do_i_get_so_angry",
+        ["why do i get so angry", "why am i so angry", "why do i get mad so easily",
+         "i get angry so fast"],
+        "Anger is usually a signal that something feels unfair, out of your control, or "
+        "like a boundary got crossed -- it's a normal feeling, not a bad one. What matters "
+        "is what you do with it. When it hits hard and fast, it can help to notice it in "
+        "your body (tight fists, hot face) and take a few breaths or step away for a minute "
+        "before reacting, rather than trying to never feel angry at all -- that's not really "
+        "possible, and it's not the goal.",
+        fuzzy_eligible=False,
+    ),
+    QAEntry(
+        "life", "afraid_to_make_mistakes",
+        [
+            "scared to make a mistake", "afraid to make a mistake", "what if i make a mistake",
+            "im scared of getting it wrong", "afraid of being wrong",
+        ],
+        "Making mistakes is actually how learning works -- your brain adjusts the most when "
+        "you get something wrong and figure out why, not when you get it right the first "
+        "time. Even people who are really good at something got there by messing up a lot "
+        "along the way. Being afraid of a mistake before you've even tried usually costs "
+        "more than the mistake itself would have.",
+        fuzzy_eligible=False,
     ),
 ]
 
@@ -343,7 +488,9 @@ LIFE: list[QAEntry] = [
 # plain factual question like "what is the sun" produced completely
 # unrelated synonym/antonym text live (topic_classifier.py didn't even have
 # "sun" as a science keyword, so it also got no illustration -- fixed
-# alongside this). One entry to start, not a science curriculum.
+# alongside this). A curated starting set across common elementary science
+# topics (the Sun, Moon, gravity, why the sky is blue, plants, the water
+# cycle, the five senses), not a science curriculum.
 SCIENCE: list[QAEntry] = [
     QAEntry(
         "science", "what_is_the_sun",
@@ -356,6 +503,73 @@ SCIENCE: list[QAEntry] = [
         "away. Its light takes about 8 minutes to reach us, and without it nothing here "
         "could survive: plants need its light to grow, and almost everything alive depends "
         "on that, directly or indirectly."
+    ),
+    QAEntry(
+        "science", "what_is_the_moon",
+        ["what is the moon", "why does the moon change shape", "moon phases",
+         "why does the moon look different"],
+        "The Moon is a big ball of rock that orbits the Earth -- it's Earth's only natural "
+        "satellite, about a quarter of Earth's size. It doesn't make its own light; what "
+        "you're seeing is sunlight bouncing off it. The Moon's shape in the sky seems to "
+        "change over about a month (new moon, crescent, half, full, and back again) because "
+        "we're seeing different amounts of its sunlit side as it orbits us -- the Moon itself "
+        "never actually changes shape."
+    ),
+    QAEntry(
+        "science", "what_is_gravity",
+        ["what is gravity", "why don't we float away", "why dont we float away",
+         "why do things fall down"],
+        "Gravity is a force that pulls things toward each other -- and the bigger something "
+        "is, the stronger its pull. Earth is so massive that it pulls everything near it "
+        "(you, water, air, a dropped pencil) straight down toward its center, which is why "
+        "things fall instead of floating off. It's the same force that keeps the Moon "
+        "orbiting Earth and Earth orbiting the Sun -- just acting over a much bigger distance."
+    ),
+    # Directly answers the exact kind of question that produced garbled,
+    # scattered-light-sounding nonsense from the generative model during
+    # live testing before this SCIENCE category existed -- "why is the sky
+    # blue" is a genuinely common kid question with a real, explainable
+    # answer (Rayleigh scattering), just written without the jargon.
+    QAEntry(
+        "science", "why_is_the_sky_blue",
+        ["why is the sky blue", "why does the sky look blue", "what makes the sky blue"],
+        "Sunlight looks white, but it's actually made of every color mixed together. When "
+        "that light hits Earth's atmosphere, the air scatters the colors with short, tight "
+        "wavelengths -- blue and violet -- much more than it scatters red or yellow. That "
+        "scattered blue light bounces around the whole sky and reaches your eyes from every "
+        "direction, which is why the sky looks blue instead of white. At sunset, the light "
+        "travels through more atmosphere, so most of the blue scatters away before it "
+        "reaches you, leaving the reds and oranges you see instead."
+    ),
+    QAEntry(
+        "science", "how_do_plants_grow",
+        ["how do plants grow", "what is photosynthesis", "how do plants make food"],
+        "Plants make their own food through a process called photosynthesis: their leaves "
+        "take in sunlight, water from their roots, and carbon dioxide from the air, and "
+        "combine them into sugar the plant uses for energy -- releasing oxygen as a "
+        "byproduct, which is a big part of the air we breathe. That's why plants need "
+        "light, water, and air to grow, not soil alone -- the soil mostly provides water "
+        "and nutrients, not the plant's actual food."
+    ),
+    QAEntry(
+        "science", "water_cycle",
+        ["water cycle", "how does rain form", "how does rain happen", "where does rain come from"],
+        "Water is constantly moving in a cycle. The Sun heats up water in oceans, lakes, "
+        "and puddles, turning it into invisible water vapor that rises into the air "
+        "(evaporation). Up high, where it's cooler, that vapor cools back into tiny water "
+        "droplets that clump together into clouds (condensation). When those droplets get "
+        "big and heavy enough, they fall back down as rain, snow, or hail (precipitation) "
+        "-- and the whole cycle starts again."
+    ),
+    QAEntry(
+        "science", "five_senses",
+        ["what are the five senses", "how do we taste", "how do we smell", "how do we hear"],
+        "Your five senses are sight, hearing, smell, taste, and touch -- each one comes "
+        "from a different part of your body sending signals to your brain. Eyes detect "
+        "light, ears detect sound vibrations, your nose detects tiny particles in the air, "
+        "your tongue detects chemicals in food, and your skin detects pressure, temperature, "
+        "and pain. Your brain combines all of that information constantly to build your "
+        "sense of what's happening around you."
     ),
 ]
 
@@ -714,6 +928,27 @@ ALL_ENTRIES: list[QAEntry] = HISTORY + ENGLISH + MATH + LIFE + SCIENCE
 _FUZZY_THRESHOLD = 0.88
 _MIN_ANCHOR_LENGTH = 5  # skip fuzzy-matching short/common words -- unstable ratios, high collision risk
 
+# The "longest word = most distinctive word" heuristic below holds for
+# curriculum vocabulary ("calculus", "pythagorean") but breaks for the LIFE
+# category's everyday emotional phrasing, where the longest word in a
+# keyword phrase is often just a common feeling word. Found live via a test
+# regression: "scared of the dark"'s longest word is "scared" (6 chars,
+# clears _MIN_ANCHOR_LENGTH) -- an EXACT match (ratio 1.0), not a typo --
+# which meant any unrelated message merely containing "scared" (e.g. "scared
+# to tell my friend the truth") would get hijacked into the dark-specific
+# canned answer. These words don't need typo tolerance the way rare
+# technical terms do, so they're excluded from ever being used as a fuzzy
+# anchor, regardless of length.
+_GENERIC_ANCHOR_STOPWORDS = {
+    "scared", "afraid", "angry", "nervous", "mommy", "daddy", "mistake", "mistakes",
+    "friend", "friends", "upset", "worried", "anxiety", "getting", "easily",
+    # Same failure mode shows up in a couple of the new SCIENCE keyword
+    # phrases too -- "things", "different", "change", "happen", "where", and
+    # "water"/"cycle" (a tie in "water cycle" -- max() picks the first,
+    # "water") are all common enough to appear in unrelated messages.
+    "things", "different", "change", "happen", "where", "water", "cycle",
+}
+
 _WORD_RE = re.compile(r"[a-z]+")
 
 # Small, curated synonym groups for common elementary vocabulary -- not a
@@ -817,6 +1052,22 @@ def find_answer(message: str, tier: AgeTier | None = None) -> str | None:
     return _fuzzy_find_answer(text, tier)
 
 
+def is_life_topic(message: str) -> bool:
+    """True if `message` would be answered by a LIFE-category entry.
+
+    Used by the orchestrator to suppress the topic illustration on
+    emotional/family questions -- found live via "my dog died" getting
+    correctly routed to the grief answer, but topic_classifier.py's
+    unrelated "animals" keyword ("dog") still matched the same message,
+    pairing a serious answer with a cheerful, unrelated critter cartoon. No
+    fuzzy check needed here: every LIFE entry has fuzzy_eligible=False (see
+    QAEntry), so this exact-substring check already mirrors what
+    find_answer() would actually match for this category.
+    """
+    text = message.lower()
+    return any(any(kw in text for kw in entry.keywords) for entry in LIFE)
+
+
 def _fuzzy_find_answer(text: str, tier: AgeTier | None = None) -> str | None:
     """Typo-tolerant fallback, tried only after exact substring matching
     finds nothing. Compares each keyword phrase's longest (most distinctive)
@@ -826,9 +1077,15 @@ def _fuzzy_find_answer(text: str, tier: AgeTier | None = None) -> str | None:
     """
     words = _WORD_RE.findall(text)
     for entry in ALL_ENTRIES:
+        if not entry.fuzzy_eligible:
+            continue
         for kw in entry.keywords:
             anchor = max(kw.split(), key=len)
-            if len(anchor) < _MIN_ANCHOR_LENGTH:
+            if (
+                len(anchor) < _MIN_ANCHOR_LENGTH
+                or "'" in anchor
+                or anchor.lower() in _GENERIC_ANCHOR_STOPWORDS
+            ):
                 continue
             if any(difflib.SequenceMatcher(None, w, anchor).ratio() >= _FUZZY_THRESHOLD for w in words):
                 return entry.answer_for(tier)
