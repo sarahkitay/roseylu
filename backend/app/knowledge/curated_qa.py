@@ -1,4 +1,5 @@
 """Curated factual answers for common History, English, and Math questions,
+plus a small set of everyday emotional/family questions (see LIFE below),
 checked before falling back to the generative model.
 
 Same reasoning as app/illustration/topic_responses.py, extended past pure
@@ -264,6 +265,75 @@ HISTORY: list[QAEntry] = [
         "(the President) enforces laws, and the Judicial branch (the courts, including the "
         "Supreme Court) interprets laws and decides if they're constitutional. This is called "
         "'checks and balances' -- each branch can limit the power of the others."
+    ),
+]
+
+# Everyday emotional/family questions -- distinct from History/English/Math
+# above (this isn't curriculum), added after a live report: "why does mommy
+# yell" isn't caught by the guardrail pipeline (it isn't dangerous -- no
+# reason to redirect it), isn't curriculum, and has no numeric template, so
+# it fell straight through to the generative model, which returned
+# completely unrelated square-root/synonym text with zero connection to what
+# was actually asked. That's a worse failure than a boring answer: a young
+# child asking something emotionally real about their family deserves an
+# actually-relevant reply, not word salad. Tiered like Columbus, since the
+# right way to talk to a 4-year-old about a parent yelling is genuinely
+# different from how you'd talk to a teenager about it, not just simpler
+# words for the same paragraph. This is explicitly a starting point, not
+# emotional-support coverage -- see the module docstring's honesty about
+# curated_qa.py being a curated set, not exhaustive. Rosey isn't a
+# therapist and doesn't claim to be; every tier here validates the child's
+# feelings and points toward a trusted adult rather than diagnosing what's
+# actually happening in their family.
+LIFE: list[QAEntry] = [
+    QAEntry(
+        "life", "why_do_parents_yell",
+        [
+            "why does mommy yell", "why does mom yell", "why does daddy yell", "why does dad yell",
+            "why do my parents yell", "why does my mom yell", "why does my dad yell",
+            "why do parents yell", "why does mommy get mad", "why does mommy get angry",
+            "why does daddy get mad", "why does daddy get angry", "why do parents fight",
+            "why does mommy scream", "why does daddy scream",
+        ],
+        "Grown-ups get loud sometimes when they're stressed, tired, or overwhelmed -- not "
+        "usually because of something you did wrong. It doesn't feel good to be around, and "
+        "it's okay to feel scared, sad, or confused when it happens. If it's bothering you, it "
+        "can really help to talk to a grown-up you trust -- like a parent, teacher, or school "
+        "counselor -- about how it makes you feel.",
+        answers_by_tier={
+            AgeTier.PRESCHOOL: (
+                "Sometimes grown-ups get loud when they have big feelings, like being tired or "
+                "frustrated -- kind of like how you might cry or stomp your feet when you're "
+                "upset! It's not because of anything you did. If it makes you feel scared, it's "
+                "okay to go find a hug from someone you trust, or tell them 'that made me feel "
+                "scared.'"
+            ),
+            AgeTier.EARLY: (
+                "Grown-ups get loud sometimes when they're feeling stressed, tired, or "
+                "frustrated -- not usually because you did something wrong. Everybody has big "
+                "feelings sometimes, even parents! If it happens a lot and it bothers you, it "
+                "really helps to tell a grown-up you trust how it makes you feel -- like 'when "
+                "you yell, it makes me feel scared' -- or talk to a teacher or school counselor "
+                "about it."
+            ),
+            AgeTier.MIDDLE: (
+                "Grown-ups yell for all kinds of reasons -- stress, being overwhelmed, not "
+                "having a great way to handle their own big feelings -- and it's very rarely "
+                "actually about something you did. That doesn't make it okay or mean you have "
+                "to just get used to it. It's okay to feel upset about it, and it can genuinely "
+                "help to talk to someone you trust -- a parent, another relative, a teacher, or "
+                "a school counselor -- about how it's affecting you."
+            ),
+            AgeTier.TEEN: (
+                "There's no single answer -- people yell for reasons that are about them "
+                "(stress, exhaustion, never having learned a better way to handle frustration) "
+                "far more often than it's actually about you, even when it doesn't feel that "
+                "way in the moment. You're allowed to feel upset about it and to want it to be "
+                "different. If it happens often, feels scary, or you're not sure it's normal, "
+                "it's worth talking to someone you trust -- a school counselor, another adult "
+                "relative, or a counselor -- they can help you figure out what to do next."
+            ),
+        },
     ),
 ]
 
@@ -605,7 +675,7 @@ MATH: list[QAEntry] = [
     ),
 ]
 
-ALL_ENTRIES: list[QAEntry] = HISTORY + ENGLISH + MATH
+ALL_ENTRIES: list[QAEntry] = HISTORY + ENGLISH + MATH + LIFE
 
 
 # Fuzzy-match threshold for the typo fallback below. Picked empirically: at

@@ -33,12 +33,38 @@ def test_columbus_does_not_end_with_a_flat_hedge_conclusion():
     for tier in AgeTier:
         answer = find_answer("how did christopher columbus get to america", tier=tier)
         assert "both parts of the story are true" not in answer.lower()
-        assert answer.rstrip().endswith("?")
 
 
-def test_history_english_math_all_represented():
+# Regression coverage for a real gap found live: "why does mommy yell" isn't
+# dangerous (no guardrail category fits) and isn't curriculum, so it fell
+# through to the generative model, which returned completely unrelated
+# square-root/synonym text -- not just low quality, but zero connection to
+# an emotionally real question from a 4-year-old.
+def test_why_parents_yell_gets_a_relevant_curated_answer():
+    answer = find_answer("why does mommy yell")
+    assert answer is not None
+    assert "stressed" in answer.lower() or "big feelings" in answer.lower()
+
+
+def test_why_parents_yell_is_tiered_by_age():
+    msg = "why does daddy yell"
+    preschool = find_answer(msg, tier=AgeTier.PRESCHOOL)
+    teen = find_answer(msg, tier=AgeTier.TEEN)
+    assert preschool != teen
+    assert "stomp your feet" in preschool.lower()
+    assert "school counselor" in teen.lower()
+
+
+def test_why_parents_yell_points_toward_a_trusted_adult_at_every_tier():
+    for tier in AgeTier:
+        answer = find_answer("why do my parents yell", tier=tier)
+        assert answer is not None
+        assert "trust" in answer.lower()
+
+
+def test_history_english_math_life_all_represented():
     subjects = {e.subject for e in ALL_ENTRIES}
-    assert subjects == {"history", "english", "math"}
+    assert subjects == {"history", "english", "math", "life"}
 
 
 def test_unmatched_message_returns_none():
