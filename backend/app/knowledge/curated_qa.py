@@ -1,6 +1,7 @@
 """Curated factual answers for common History, English, and Math questions,
-plus a small set of everyday emotional/family questions (see LIFE below),
-checked before falling back to the generative model.
+plus a small set of everyday emotional/family questions (see LIFE below) and
+basic science facts (see SCIENCE below), checked before falling back to the
+generative model.
 
 Same reasoning as app/illustration/topic_responses.py, extended past pure
 arithmetic: the from-scratch local model has no reliable general knowledge
@@ -334,6 +335,27 @@ LIFE: list[QAEntry] = [
                 "relative, or a counselor -- they can help you figure out what to do next."
             ),
         },
+    ),
+]
+
+# Basic science facts -- same reasoning as LIFE and the History/English/Math
+# lists above: the local model has no reliable general knowledge, and a
+# plain factual question like "what is the sun" produced completely
+# unrelated synonym/antonym text live (topic_classifier.py didn't even have
+# "sun" as a science keyword, so it also got no illustration -- fixed
+# alongside this). One entry to start, not a science curriculum.
+SCIENCE: list[QAEntry] = [
+    QAEntry(
+        "science", "what_is_the_sun",
+        ["what is the sun", "why is the sun", "how hot is the sun", "what is the sun made of",
+         "is the sun a star", "what is the sun made out of"],
+        "The Sun is a star -- an enormous ball of hot, glowing gas so big that about a "
+        "million Earths could fit inside it. It's made mostly of hydrogen and helium, and "
+        "deep in its core, atoms get squeezed together so hard that they release huge "
+        "amounts of light and heat -- that's why it feels warm even from 93 million miles "
+        "away. Its light takes about 8 minutes to reach us, and without it nothing here "
+        "could survive: plants need its light to grow, and almost everything alive depends "
+        "on that, directly or indirectly."
     ),
 ]
 
@@ -675,7 +697,7 @@ MATH: list[QAEntry] = [
     ),
 ]
 
-ALL_ENTRIES: list[QAEntry] = HISTORY + ENGLISH + MATH + LIFE
+ALL_ENTRIES: list[QAEntry] = HISTORY + ENGLISH + MATH + LIFE + SCIENCE
 
 
 # Fuzzy-match threshold for the typo fallback below. Picked empirically: at

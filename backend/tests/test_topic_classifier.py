@@ -33,6 +33,10 @@ def test_science_detected():
     assert classify("tell me about the solar system") == "science"
 
 
+def test_sun_detected_as_science():
+    assert classify("what is the sun") == "science"
+
+
 def test_columbus_detected():
     assert classify("how did christopher columbus get to america") == "columbus"
 

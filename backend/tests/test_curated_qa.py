@@ -62,9 +62,18 @@ def test_why_parents_yell_points_toward_a_trusted_adult_at_every_tier():
         assert "trust" in answer.lower()
 
 
-def test_history_english_math_life_all_represented():
+def test_history_english_math_life_science_all_represented():
     subjects = {e.subject for e in ALL_ENTRIES}
-    assert subjects == {"history", "english", "math", "life"}
+    assert subjects == {"history", "english", "math", "life", "science"}
+
+
+# Regression coverage for a real gap found live: "what is the sun" produced
+# completely unrelated synonym/antonym text -- "sun" wasn't even a science
+# keyword in topic_classifier.py, so it got no illustration either.
+def test_what_is_the_sun_gets_a_relevant_curated_answer():
+    answer = find_answer("what is the sun")
+    assert answer is not None
+    assert "star" in answer.lower()
 
 
 def test_unmatched_message_returns_none():
