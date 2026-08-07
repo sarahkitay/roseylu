@@ -1272,7 +1272,39 @@ MATH: list[QAEntry] = [
     ),
 ]
 
-ALL_ENTRIES: list[QAEntry] = HISTORY + ENGLISH + MATH + LIFE + SCIENCE
+# Practical everyday how-to skills -- distinct from LIFE (which is
+# specifically emotional/family content, see that list's own docstring
+# comment) and from the academic subjects above. Added after "how do i tie
+# my shoe" produced garbled, unrelated text live: not dangerous, not
+# curriculum, not emotional -- just a genuinely common practical question a
+# kid asks that the small local model has no reliable way to answer.
+SKILLS: list[QAEntry] = [
+    QAEntry(
+        "skills", "how_to_tie_shoes",
+        [
+            "how do i tie my shoe", "how do i tie my shoes", "how to tie shoes",
+            "how to tie a shoe", "how do you tie your shoes", "how do you tie shoes",
+        ],
+        "Start by crossing the two laces to make an X, tuck one end under the other, and "
+        "pull both ends tight to make a base knot. Next, make a loop ('bunny ear') with one "
+        "lace, wrap the other lace around the base of that loop, and push a bit of it "
+        "through the gap to form a second loop. Pull both loops tight and you're done! It "
+        "usually takes a bunch of practice before your fingers get used to it, so don't "
+        "worry if it takes a few tries.",
+        answers_by_tier={
+            AgeTier.PRESCHOOL: (
+                "Try the 'bunny ears' way! First, cross your laces to make an X and pull "
+                "them into a knot. Then make two bunny ear loops, one in each hand -- cross "
+                "them like you're making another X, tuck one bunny ear under the other, and "
+                "pull both ears tight! It might take lots of tries to get it right, and "
+                "that's totally okay."
+            ),
+        },
+        fuzzy_eligible=False,
+    ),
+]
+
+ALL_ENTRIES: list[QAEntry] = HISTORY + ENGLISH + MATH + LIFE + SCIENCE + SKILLS
 
 
 # Fuzzy-match threshold for the typo fallback below. Picked empirically: at

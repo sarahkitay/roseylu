@@ -62,9 +62,21 @@ def test_why_parents_yell_points_toward_a_trusted_adult_at_every_tier():
         assert "trust" in answer.lower()
 
 
-def test_history_english_math_life_science_all_represented():
+def test_history_english_math_life_science_skills_all_represented():
     subjects = {e.subject for e in ALL_ENTRIES}
-    assert subjects == {"history", "english", "math", "life", "science"}
+    assert subjects == {"history", "english", "math", "life", "science", "skills"}
+
+
+def test_how_to_tie_shoes_gets_a_relevant_curated_answer():
+    answer = find_answer("how do i tie my shoe")
+    assert answer is not None
+    assert "loop" in answer.lower() or "bunny" in answer.lower()
+
+
+def test_how_to_tie_shoes_is_tiered_for_preschool():
+    preschool = find_answer("how do i tie my shoe", tier=AgeTier.PRESCHOOL)
+    default = find_answer("how do i tie my shoe", tier=AgeTier.MIDDLE)
+    assert preschool != default
 
 
 # Regression coverage for a real gap found live: "what is the sun" produced

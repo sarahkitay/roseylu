@@ -1014,6 +1014,19 @@ function buildLifeScene() {
   </svg>`;
 }
 
+// SKILLS subject (curated_qa.py) -- practical everyday how-to questions,
+// distinct from LIFE's emotional content. A sneaker with laces mid-tie.
+function buildSkillsScene() {
+  return `<svg viewBox="0 0 180 120" xmlns="http://www.w3.org/2000/svg">
+    <path class="pop-item" d="M20,95 L20,70 Q20,55 40,52 L90,44 Q100,30 118,34 L150,44 Q166,49 166,66 L166,95 Z" fill="#1CB0F6" stroke="${INK}" stroke-width="4"/>
+    <path d="M20,95 L166,95" stroke="${INK}" stroke-width="4"/>
+    <path class="pop-item" style="animation-delay:0.15s" d="M70,50 L85,64 M85,50 L70,64 M95,46 L110,60 M110,46 L95,60 M120,42 L135,56 M135,42 L120,56"
+          stroke="#FFF3D6" stroke-width="4" stroke-linecap="round"/>
+    <path class="pop-item" style="animation-delay:0.3s" d="M128,40 Q142,28 152,38 Q158,44 150,50" fill="none" stroke="#FFC800" stroke-width="4" stroke-linecap="round"/>
+    <text x="93" y="112" font-size="12" text-anchor="middle" fill="${INK}" font-family="sans-serif">practice makes it easier</text>
+  </svg>`;
+}
+
 const MULTI_BEAT_BUILDERS = {
   columbus: () => [buildColumbusScene(0), buildColumbusScene(1), buildColumbusScene(2)],
 };
@@ -1033,6 +1046,7 @@ const ILLUSTRATION_BUILDERS = {
   history: () => buildHistoryScene(),
   math: () => buildMathScene(),
   life: () => buildLifeScene(),
+  skills: () => buildSkillsScene(),
 };
 
 function buildIllustration(topic, numbers) {

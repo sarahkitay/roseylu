@@ -61,6 +61,14 @@ def test_chat_curated_answer_with_no_topic_match_gets_subject_illustration():
     assert body["topic"] == "math"
 
 
+def test_chat_skills_answer_gets_the_skills_illustration():
+    resp = client.post("/chat", json={"child": _child(), "message": "how do i tie my shoe"})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["action"] == "ALLOW"
+    assert body["topic"] == "skills"
+
+
 def test_chat_columbus_keeps_its_specific_illustration_not_generic_history():
     resp = client.post("/chat", json={"child": _child(), "message": "how did christopher columbus get to america"})
     assert resp.status_code == 200

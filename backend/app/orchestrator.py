@@ -49,6 +49,7 @@ _SUBJECT_FALLBACK_TOPIC: dict[str, str] = {
     "english": "english",
     "math": "math",
     "life": "life",
+    "skills": "skills",
     "science": "science-general",
 }
 
