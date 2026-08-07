@@ -491,6 +491,14 @@ LIFE: list[QAEntry] = [
 # alongside this). A curated starting set across common elementary science
 # topics (the Sun, Moon, gravity, why the sky is blue, plants, the water
 # cycle, the five senses), not a science curriculum.
+# Every entry below now carries a PRESCHOOL variant -- caught live: "what is
+# water made up of" gave a 5-year-old and an 11-year-old the exact same
+# "molecule"/"H2O" explanation, unlike the LIFE and Columbus flagship
+# entries, which already vary by age. Only PRESCHOOL is split out (not all
+# four tiers) -- these entries' single `answer` is already written at a
+# reasonably accessible register for EARLY/MIDDLE/TEEN, and the biggest gap
+# was specifically the youngest tier, same reasoning as the module
+# docstring's honest accounting of why not everything is tiered 4 ways.
 SCIENCE: list[QAEntry] = [
     QAEntry(
         "science", "what_is_the_sun",
@@ -502,7 +510,14 @@ SCIENCE: list[QAEntry] = [
         "amounts of light and heat -- that's why it feels warm even from 93 million miles "
         "away. Its light takes about 8 minutes to reach us, and without it nothing here "
         "could survive: plants need its light to grow, and almost everything alive depends "
-        "on that, directly or indirectly."
+        "on that, directly or indirectly.",
+        answers_by_tier={
+            AgeTier.PRESCHOOL: (
+                "The Sun is a giant, giant ball of fire way up in the sky! It's so hot and "
+                "bright that it gives us light in the daytime and keeps us warm. Without "
+                "the Sun, plants couldn't grow and everything would be cold and dark."
+            ),
+        },
     ),
     QAEntry(
         "science", "what_is_the_moon",
@@ -513,7 +528,15 @@ SCIENCE: list[QAEntry] = [
         "you're seeing is sunlight bouncing off it. The Moon's shape in the sky seems to "
         "change over about a month (new moon, crescent, half, full, and back again) because "
         "we're seeing different amounts of its sunlit side as it orbits us -- the Moon itself "
-        "never actually changes shape."
+        "never actually changes shape.",
+        answers_by_tier={
+            AgeTier.PRESCHOOL: (
+                "The Moon is like a big round rock way up in the sky that circles around "
+                "and around the Earth! It looks like it changes shape sometimes -- a full "
+                "circle, then a sliver -- but that's really just us seeing different parts "
+                "of it lit up by the Sun."
+            ),
+        },
     ),
     QAEntry(
         "science", "what_is_gravity",
@@ -523,7 +546,14 @@ SCIENCE: list[QAEntry] = [
         "is, the stronger its pull. Earth is so massive that it pulls everything near it "
         "(you, water, air, a dropped pencil) straight down toward its center, which is why "
         "things fall instead of floating off. It's the same force that keeps the Moon "
-        "orbiting Earth and Earth orbiting the Sun -- just acting over a much bigger distance."
+        "orbiting Earth and Earth orbiting the Sun -- just acting over a much bigger distance.",
+        answers_by_tier={
+            AgeTier.PRESCHOOL: (
+                "Gravity is like an invisible hug from the Earth that pulls everything "
+                "down! That's why a ball falls down when you drop it instead of floating "
+                "up, and why your feet stay on the ground instead of floating away."
+            ),
+        },
     ),
     # Directly answers the exact kind of question that produced garbled,
     # scattered-light-sounding nonsense from the generative model during
@@ -539,7 +569,15 @@ SCIENCE: list[QAEntry] = [
         "scattered blue light bounces around the whole sky and reaches your eyes from every "
         "direction, which is why the sky looks blue instead of white. At sunset, the light "
         "travels through more atmosphere, so most of the blue scatters away before it "
-        "reaches you, leaving the reds and oranges you see instead."
+        "reaches you, leaving the reds and oranges you see instead.",
+        answers_by_tier={
+            AgeTier.PRESCHOOL: (
+                "Sunlight is actually made of lots of colors all mixed together! When it "
+                "comes down through the sky, the air bounces the blue color around the "
+                "most, so blue is the color we see everywhere we look up. That's why the "
+                "sky looks blue!"
+            ),
+        },
     ),
     QAEntry(
         "science", "how_do_plants_grow",
@@ -549,7 +587,14 @@ SCIENCE: list[QAEntry] = [
         "combine them into sugar the plant uses for energy -- releasing oxygen as a "
         "byproduct, which is a big part of the air we breathe. That's why plants need "
         "light, water, and air to grow, not soil alone -- the soil mostly provides water "
-        "and nutrients, not the plant's actual food."
+        "and nutrients, not the plant's actual food.",
+        answers_by_tier={
+            AgeTier.PRESCHOOL: (
+                "Plants make their own food using sunlight, water, and air! Their leaves "
+                "soak up sunlight, their roots drink up water from the dirt, and they mix "
+                "it all together to make plant food that helps them grow big and tall."
+            ),
+        },
     ),
     QAEntry(
         "science", "water_cycle",
@@ -559,7 +604,15 @@ SCIENCE: list[QAEntry] = [
         "(evaporation). Up high, where it's cooler, that vapor cools back into tiny water "
         "droplets that clump together into clouds (condensation). When those droplets get "
         "big and heavy enough, they fall back down as rain, snow, or hail (precipitation) "
-        "-- and the whole cycle starts again."
+        "-- and the whole cycle starts again.",
+        answers_by_tier={
+            AgeTier.PRESCHOOL: (
+                "Water goes on a big journey! The Sun warms up water in puddles and oceans "
+                "until it floats up into the sky like invisible mist. Way up high, it turns "
+                "into clouds. When a cloud gets too full, the water falls back down as "
+                "rain! Then it all happens again."
+            ),
+        },
     ),
     # Regression coverage for a real gap found live: "what is water made up
     # of" produced garbled, unrelated text -- distinct question from
@@ -575,7 +628,16 @@ SCIENCE: list[QAEntry] = [
         "molecules. Water can exist as a liquid (what comes out of a faucet), a solid "
         "(ice, when it's cold enough), or a gas (steam or invisible water vapor, when "
         "it's hot enough) -- it's the exact same molecule the whole time, just moving "
-        "differently."
+        "differently.",
+        answers_by_tier={
+            AgeTier.PRESCHOOL: (
+                "Water is made of teeny tiny pieces called molecules that are much too "
+                "small to see! Every raindrop, every puddle, and every cup of water you "
+                "drink is made of gazillions of these tiny pieces stuck together. Water "
+                "can be splashy and wet, hard and icy, or turn into invisible steam -- but "
+                "it's always the same water."
+            ),
+        },
     ),
     QAEntry(
         "science", "five_senses",
@@ -585,7 +647,14 @@ SCIENCE: list[QAEntry] = [
         "light, ears detect sound vibrations, your nose detects tiny particles in the air, "
         "your tongue detects chemicals in food, and your skin detects pressure, temperature, "
         "and pain. Your brain combines all of that information constantly to build your "
-        "sense of what's happening around you."
+        "sense of what's happening around you.",
+        answers_by_tier={
+            AgeTier.PRESCHOOL: (
+                "You have five special ways to explore the world! Your eyes help you see, "
+                "your ears help you hear, your nose helps you smell, your tongue helps you "
+                "taste, and your skin helps you feel things like soft, hard, hot, or cold."
+            ),
+        },
     ),
 ]
 
@@ -1061,30 +1130,45 @@ def find_answer(message: str, tier: AgeTier | None = None) -> str | None:
     if specific:
         return specific
 
-    text = message.lower()
+    entry = _find_entry(message.lower())
+    return entry.answer_for(tier) if entry else None
+
+
+def subject_for(message: str) -> str | None:
+    """Returns the subject ("history"/"english"/"math"/"life"/"science")
+    of whichever entry would answer `message` via find_answer(), or None if
+    nothing would match. Reuses the exact same matching path as
+    find_answer() (including the synonym-question special case, reported as
+    "english") rather than re-implementing it, so the two can never
+    disagree about whether/what matched.
+
+    Lets the orchestrator pick a subject-appropriate generic illustration
+    for curated answers that don't already have a specific one from
+    topic_classifier.py (see its ILLUSTRATION_BUILDERS-adjacent topics:
+    columbus, science, reading, shapes) -- e.g. "what is a decimal" gets a
+    generic math illustration instead of none. Originally added narrower,
+    as is_life_topic(), after "my dog died" got the correct grief answer
+    but topic_classifier.py's unrelated "animals" keyword ("dog") still
+    matched the same message, pairing a serious answer with a cheerful,
+    unrelated critter cartoon -- the fix then was to suppress the
+    illustration entirely for LIFE answers. Generalized here so instead of
+    suppressing, every subject (not just LIFE) can get its own
+    appropriate, non-mismatched illustration.
+    """
+    if _answer_synonym_question(message):
+        return "english"
+    entry = _find_entry(message.lower())
+    return entry.subject if entry else None
+
+
+def _find_entry(text: str) -> QAEntry | None:
     for entry in ALL_ENTRIES:
         if any(kw in text for kw in entry.keywords):
-            return entry.answer_for(tier)
-    return _fuzzy_find_answer(text, tier)
+            return entry
+    return _fuzzy_find_entry(text)
 
 
-def is_life_topic(message: str) -> bool:
-    """True if `message` would be answered by a LIFE-category entry.
-
-    Used by the orchestrator to suppress the topic illustration on
-    emotional/family questions -- found live via "my dog died" getting
-    correctly routed to the grief answer, but topic_classifier.py's
-    unrelated "animals" keyword ("dog") still matched the same message,
-    pairing a serious answer with a cheerful, unrelated critter cartoon. No
-    fuzzy check needed here: every LIFE entry has fuzzy_eligible=False (see
-    QAEntry), so this exact-substring check already mirrors what
-    find_answer() would actually match for this category.
-    """
-    text = message.lower()
-    return any(any(kw in text for kw in entry.keywords) for entry in LIFE)
-
-
-def _fuzzy_find_answer(text: str, tier: AgeTier | None = None) -> str | None:
+def _fuzzy_find_entry(text: str) -> QAEntry | None:
     """Typo-tolerant fallback, tried only after exact substring matching
     finds nothing. Compares each keyword phrase's longest (most distinctive)
     word against every word actually in the message -- typos land on the
@@ -1104,5 +1188,5 @@ def _fuzzy_find_answer(text: str, tier: AgeTier | None = None) -> str | None:
             ):
                 continue
             if any(difflib.SequenceMatcher(None, w, anchor).ratio() >= _FUZZY_THRESHOLD for w in words):
-                return entry.answer_for(tier)
+                return entry
     return None

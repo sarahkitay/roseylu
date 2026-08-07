@@ -21,6 +21,18 @@ from app.persona.persona_engine import build_system_prompt
 from app.response.redirect_engine import build_generation_safety_fallback, build_redirect
 from app.review_queue import DEFAULT_QUEUE
 
+# When a curated_qa entry answers, which topic_classifier.py illustration(s)
+# (if independently matched from the same message) are still a good fit for
+# that entry's subject and should be kept as-is, instead of being replaced
+# by the subject's own generic illustration (see handle_chat_turn). LIFE is
+# deliberately absent -- see the inline comment where this is used.
+_SUBJECT_ILLUSTRATION_OVERLAP: dict[str, tuple[str, ...]] = {
+    "history": ("columbus",),
+    "english": ("reading",),
+    "math": ("shapes",),
+    "science": ("science",),
+}
+
 
 def _resolve_quiz(child: ChildProfile, message: str) -> tuple[str | None, str | None, list[int]]:
     """Returns (reply, topic, topic_numbers) if this turn is quiz-related
@@ -102,13 +114,29 @@ def handle_chat_turn(
                 # (and common emotional/family) topics get a hand-written,
                 # correct answer instead of a generated guess.
                 reply = curated
-                if curated_qa.is_life_topic(message):
-                    # e.g. "my dog died" -- topic_classifier's "animals"
-                    # keyword ("dog") still matches this message even though
-                    # a LIFE entry answered it, which would otherwise pair a
-                    # grief answer with a cheerful, unrelated critter scene.
-                    topic = None
-                    topic_numbers = []
+                # Give every curated answer a relevant illustration, not
+                # just the handful topic_classifier already has specific
+                # scenes for (columbus, science, reading, shapes) -- e.g.
+                # "what is a decimal" used to get no illustration at all.
+                # subject_for() reuses find_answer()'s own matching, so this
+                # can't disagree with what actually answered. Only overrides
+                # topic_classifier's guess when it ISN'T one of the
+                # illustrations that's already a good fit for this subject
+                # (e.g. keep "columbus" for Columbus, keep "science" for a
+                # sun/moon/gravity question) -- otherwise topic_classifier's
+                # incidental keyword matches can be actively wrong for a
+                # curated answer, e.g. "my dog died" hit the unrelated
+                # "animals" topic (a cheerful critter scene) purely because
+                # the message contains the word "dog", even though a LIFE
+                # entry answered it. LIFE never keeps an incidental match --
+                # emotional content's own generic illustration is always the
+                # right call over a coincidentally-matched keyword topic.
+                entry_subject = curated_qa.subject_for(message)
+                if entry_subject is not None:
+                    keep_topic_as_is = topic in _SUBJECT_ILLUSTRATION_OVERLAP.get(entry_subject, ())
+                    if not keep_topic_as_is:
+                        topic = entry_subject
+                        topic_numbers = []
             else:
                 system_prompt = build_system_prompt(child)
                 reply = DEFAULT_BACKEND.generate(system_prompt, message)

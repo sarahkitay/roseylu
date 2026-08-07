@@ -37,14 +37,35 @@ def test_chat_allow_path():
 # got the curated grief answer, but topic_classifier.py's unrelated
 # "animals" keyword ("dog") also matched the same message, which would
 # otherwise pair a grief answer with a cheerful, unrelated critter cartoon.
-def test_chat_life_topic_answer_has_no_mismatched_illustration():
+# The fix routes it to LIFE's own generic illustration instead -- every
+# curated answer should get a relevant animation, not "no illustration at
+# all" as the previous fix did.
+def test_chat_life_topic_answer_gets_the_life_illustration_not_animals():
     resp = client.post("/chat", json={"child": _child(age=4), "message": "my dog died"})
     assert resp.status_code == 200
     body = resp.json()
     assert body["action"] == "ALLOW"
     assert "sorry" in body["reply"].lower()
-    assert body["topic"] is None
+    assert body["topic"] == "life"
     assert body["topic_numbers"] == []
+
+
+# Regression coverage: curated answers with no topic_classifier match at
+# all used to get no illustration -- e.g. "what is a decimal" (math,
+# non-arithmetic-template, no numeric illustration builder either).
+def test_chat_curated_answer_with_no_topic_match_gets_subject_illustration():
+    resp = client.post("/chat", json={"child": _child(), "message": "what is a decimal"})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["action"] == "ALLOW"
+    assert body["topic"] == "math"
+
+
+def test_chat_columbus_keeps_its_specific_illustration_not_generic_history():
+    resp = client.post("/chat", json={"child": _child(), "message": "how did christopher columbus get to america"})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["topic"] == "columbus"
 
 
 def test_chat_math_topic_uses_templated_answer_not_the_model(monkeypatch):

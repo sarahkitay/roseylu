@@ -1,5 +1,5 @@
 from app.config import AgeTier
-from app.knowledge.curated_qa import ALL_ENTRIES, find_answer
+from app.knowledge.curated_qa import ALL_ENTRIES, find_answer, subject_for
 
 
 def test_columbus_question_gets_curated_answer():
@@ -130,6 +130,39 @@ def test_what_is_water_made_of_gets_a_relevant_curated_answer():
     answer = find_answer("what is water made up of")
     assert answer is not None
     assert "h2o" in answer.lower() or "hydrogen" in answer.lower()
+
+
+# Regression coverage: reported live that "what is water made up of" gave
+# age 11 and age 5 the exact same molecule/H2O explanation. All SCIENCE
+# entries now have a PRESCHOOL variant.
+def test_science_entries_are_tiered_for_preschool():
+    for message in [
+        "what is water made up of", "what is the sun", "what is the moon",
+        "what is gravity", "why is the sky blue", "how do plants grow",
+        "water cycle", "what are the five senses",
+    ]:
+        preschool = find_answer(message, tier=AgeTier.PRESCHOOL)
+        default = find_answer(message, tier=AgeTier.MIDDLE)
+        assert preschool is not None and default is not None
+        assert preschool != default, f"{message!r} not tiered for PRESCHOOL"
+
+
+def test_subject_for_matches_the_entry_that_would_actually_answer():
+    assert subject_for("how did christopher columbus get to america") == "history"
+    assert subject_for("why does mommy yell") == "life"
+    assert subject_for("what is the sun") == "science"
+    assert subject_for("what is a decimal") == "math"
+
+
+def test_subject_for_reports_english_for_the_synonym_special_case():
+    # _answer_synonym_question is checked before the keyword table in
+    # find_answer() -- subject_for() must agree it's "english", not fall
+    # through to None just because it's handled by a different code path.
+    assert subject_for("which word is a synonym for gift: store, cat, present, ocean") == "english"
+
+
+def test_subject_for_returns_none_for_unmatched_message():
+    assert subject_for("i got in a fight with my best friend") is None
 
 
 def test_every_entry_has_a_working_keyword():

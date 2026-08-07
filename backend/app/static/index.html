@@ -944,6 +944,58 @@ function buildColumbusScene(beat) {
   </svg>`;
 }
 
+// Generic, subject-level scenes for curated_qa answers that don't already
+// have a specific illustration from a topic_classifier.py keyword match
+// (see orchestrator.py's _SUBJECT_ILLUSTRATION_OVERLAP) -- e.g. "what is a
+// decimal" used to get no illustration at all. "english" deliberately has
+// no builder of its own here -- it's aliased straight to buildReadingScene
+// below, since an open book already fits English-subject content well and
+// a near-duplicate builder would just be the same picture twice.
+function buildHistoryScene() {
+  return `<svg viewBox="0 0 220 130" xmlns="http://www.w3.org/2000/svg">
+    <rect class="pop-item" x="30" y="30" width="160" height="80" rx="10" fill="#F4E4C1" stroke="${INK}" stroke-width="4"/>
+    <line x1="46" y1="50" x2="174" y2="50" stroke="${INK}" stroke-width="2" opacity="0.5"/>
+    <line x1="46" y1="66" x2="174" y2="66" stroke="${INK}" stroke-width="2" opacity="0.5"/>
+    <line x1="46" y1="82" x2="140" y2="82" stroke="${INK}" stroke-width="2" opacity="0.5"/>
+    <path class="pop-item" style="animation-delay:0.15s" d="M150,90 L185,55 L195,65 L160,100 Z" fill="#8B5A2B" stroke="${INK}" stroke-width="3"/>
+    <path class="pop-item" style="animation-delay:0.15s" d="M185,55 L192,48 L200,56 L195,65 Z" fill="#CE82FF" stroke="${INK}" stroke-width="2.5"/>
+    <text x="110" y="122" font-size="12" text-anchor="middle" fill="${INK}" font-family="sans-serif">a page from history</text>
+  </svg>`;
+}
+
+function buildMathScene() {
+  const rows = [32, 62, 92];
+  let beads = "";
+  rows.forEach((y, r) => {
+    for (let c = 0; c < 4; c++) {
+      beads += `<circle class="pop-item" style="animation-delay:${(r * 4 + c) * 0.05}s" cx="${40 + c * 34}" cy="${y}" r="10" fill="${PALETTE[(r + c) % PALETTE.length]}" stroke="${INK}" stroke-width="2.5"/>`;
+    }
+  });
+  return `<svg viewBox="0 0 200 120" xmlns="http://www.w3.org/2000/svg">
+    <rect x="15" y="15" width="170" height="95" rx="10" fill="none" stroke="${INK}" stroke-width="4"/>
+    <line x1="15" y1="32" x2="185" y2="32" stroke="${INK}" stroke-width="2.5" opacity="0.4"/>
+    <line x1="15" y1="62" x2="185" y2="62" stroke="${INK}" stroke-width="2.5" opacity="0.4"/>
+    <line x1="15" y1="92" x2="185" y2="92" stroke="${INK}" stroke-width="2.5" opacity="0.4"/>
+    ${beads}
+    <text x="100" y="116" font-size="12" text-anchor="middle" fill="${INK}" font-family="sans-serif">numbers at work</text>
+  </svg>`;
+}
+
+// Deliberately calm/muted rather than party-bright -- this renders
+// alongside EVERY LIFE-subject answer (see curated_qa.py's LIFE category),
+// including grief and fear, so it has to work for serious topics too, not
+// just cheerful ones. A soft heart with a few gentle sparkles, no
+// confetti/streamers imagery.
+function buildLifeScene() {
+  return `<svg viewBox="0 0 180 130" xmlns="http://www.w3.org/2000/svg">
+    <path class="pop-item" d="M90,110 C40,75 45,35 80,35 C90,35 90,45 90,50 C90,45 90,35 100,35 C135,35 140,75 90,110 Z" fill="#FF86D0" stroke="${INK}" stroke-width="4"/>
+    <circle class="pop-item twinkle" style="animation-delay:0.2s" cx="40" cy="40" r="4" fill="#FFC800"/>
+    <circle class="pop-item twinkle" style="animation-delay:0.4s" cx="145" cy="30" r="5" fill="#1CB0F6"/>
+    <circle class="pop-item twinkle" style="animation-delay:0.6s" cx="150" cy="70" r="3.5" fill="#58CC02"/>
+    <text x="90" y="126" font-size="12" text-anchor="middle" fill="${INK}" font-family="sans-serif">it's okay to feel what you feel</text>
+  </svg>`;
+}
+
 const MULTI_BEAT_BUILDERS = {
   columbus: () => [buildColumbusScene(0), buildColumbusScene(1), buildColumbusScene(2)],
 };
@@ -958,6 +1010,10 @@ const ILLUSTRATION_BUILDERS = {
   science: () => buildScienceScene(),
   animals: () => buildAnimalsScene(),
   reading: () => buildReadingScene(),
+  english: () => buildReadingScene(),
+  history: () => buildHistoryScene(),
+  math: () => buildMathScene(),
+  life: () => buildLifeScene(),
 };
 
 function buildIllustration(topic, numbers) {
