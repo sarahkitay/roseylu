@@ -999,6 +999,33 @@ ENGLISH: list[QAEntry] = [
         "what really makes something a poem is careful attention to rhythm, word choice, and "
         "how it's broken into lines, not just rhyming."
     ),
+    # Regression coverage for a real gap found live: "what is a haiku"
+    # produced garbled text -- this answers the FORM of a haiku (structure,
+    # syllable counts). It does not, and can't, cover "write a poem about
+    # it" -- actually generating a poem is a creative-writing task for the
+    # generative model, not a factual lookup, and "it" can't be resolved to
+    # a topic from a single stateless message anyway (this app doesn't pass
+    # conversation history into orchestrator.handle_chat_turn -- see
+    # docs/ARCHITECTURE.md). That's a different, harder problem than the
+    # curated-answer gaps this file otherwise fixes.
+    QAEntry(
+        "english", "what_is_a_haiku",
+        ["what is a haiku", "how do i write a haiku", "how to write a haiku",
+         "what is a haiku poem"],
+        "A haiku is a short, unrhymed poem with three lines that follow a specific pattern "
+        "of syllables: 5 in the first line, 7 in the second, and 5 in the third (5-7-5), for "
+        "17 syllables total. Haiku started in Japan and traditionally focus on a single "
+        "moment in nature or a small, vivid observation, rather than telling a whole story. "
+        "For example: 'Autumn leaves falling (5) / Dancing softly to the ground (7) / Winter "
+        "whispers near (5).'",
+        answers_by_tier={
+            AgeTier.PRESCHOOL: (
+                "A haiku is a tiny poem with just three lines! The words in each line follow "
+                "a counting pattern -- but the important part is it's short and usually about "
+                "something in nature, like a flower, the rain, or the sun."
+            ),
+        },
+    ),
     QAEntry(
         "english", "theme_of_book",
         ["what is the theme of", "how do i find the theme"],
@@ -1374,6 +1401,13 @@ _GENERIC_ANCHOR_STOPWORDS = {
     #   - "silent": spelling_rules ("silent e rule")
     "makes", "person", "before", "world", "america", "americans", "structure", "parts",
     "number", "numbers", "difference", "caused", "movement", "sentence", "silent",
+    # "write" is the anchor for 2 of what_is_a_haiku's 4 keyword phrases
+    # ("how do i write a haiku" / "how to write a haiku" -- tied length
+    # with "haiku" itself, and max() picks the first) -- an extremely
+    # common verb in a kids' homework-help app ("how do i write my name,"
+    # "write a story about...") that would otherwise hijack any of those
+    # into the haiku-structure answer.
+    "write", "writing", "writes",
 }
 
 _WORD_RE = re.compile(r"[a-z]+")

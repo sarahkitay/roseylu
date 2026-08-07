@@ -196,6 +196,19 @@ def test_cell_wall_fuzzy_anchor_does_not_hijack_unrelated_animal_questions():
 # non-typo match). Prompted a full audit of every fuzzy-eligible keyword's
 # anchor in curated_qa.py; this and the following test pin a sample of what
 # that audit found and fixed.
+def test_what_is_a_haiku_gets_a_relevant_curated_answer():
+    answer = find_answer("what is a haiku")
+    assert answer is not None
+    assert "5-7-5" in answer or "syllable" in answer.lower()
+
+
+def test_write_is_not_a_fuzzy_anchor():
+    # "how do i write a haiku"'s tied-length anchor ("write" vs "haiku")
+    # picks "write" -- an everyday verb that must not hijack unrelated
+    # writing-help requests into the haiku-structure answer.
+    assert find_answer("how do i write my name neatly") is None
+
+
 def test_how_to_make_friends_gets_a_relevant_curated_answer():
     answer = find_answer("how do i make friends")
     assert answer is not None
