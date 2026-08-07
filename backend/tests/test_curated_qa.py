@@ -123,6 +123,15 @@ def test_unrelated_message_containing_a_common_life_keyword_is_not_hijacked():
     assert find_answer("i made a mistake on my homework") is None
 
 
+# Regression coverage for a real gap found live: "what is water made up of"
+# produced garbled, unrelated text -- distinct from water_cycle (rain
+# formation), so it needed its own entry.
+def test_what_is_water_made_of_gets_a_relevant_curated_answer():
+    answer = find_answer("what is water made up of")
+    assert answer is not None
+    assert "h2o" in answer.lower() or "hydrogen" in answer.lower()
+
+
 def test_every_entry_has_a_working_keyword():
     # each entry's own first keyword should route back to itself -- catches
     # copy-paste keyword collisions between entries (an earlier entry

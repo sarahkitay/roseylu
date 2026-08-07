@@ -561,6 +561,22 @@ SCIENCE: list[QAEntry] = [
         "big and heavy enough, they fall back down as rain, snow, or hail (precipitation) "
         "-- and the whole cycle starts again."
     ),
+    # Regression coverage for a real gap found live: "what is water made up
+    # of" produced garbled, unrelated text -- distinct question from
+    # water_cycle above (composition, not where rain comes from), so it
+    # needs its own entry rather than a keyword added to that one.
+    QAEntry(
+        "science", "what_is_water_made_of",
+        ["what is water made of", "what is water made up of", "what is water",
+         "is water a molecule", "is water an element"],
+        "Water is a simple molecule made of two hydrogen atoms and one oxygen atom stuck "
+        "together -- that's why scientists write it as H2O. Every raindrop, river, ocean, "
+        "and glass of water you drink is made of countless numbers of these tiny "
+        "molecules. Water can exist as a liquid (what comes out of a faucet), a solid "
+        "(ice, when it's cold enough), or a gas (steam or invisible water vapor, when "
+        "it's hot enough) -- it's the exact same molecule the whole time, just moving "
+        "differently."
+    ),
     QAEntry(
         "science", "five_senses",
         ["what are the five senses", "how do we taste", "how do we smell", "how do we hear"],
@@ -946,7 +962,7 @@ _GENERIC_ANCHOR_STOPWORDS = {
     # phrases too -- "things", "different", "change", "happen", "where", and
     # "water"/"cycle" (a tie in "water cycle" -- max() picks the first,
     # "water") are all common enough to appear in unrelated messages.
-    "things", "different", "change", "happen", "where", "water", "cycle",
+    "things", "different", "change", "happen", "where", "water", "cycle", "element",
 }
 
 _WORD_RE = re.compile(r"[a-z]+")
