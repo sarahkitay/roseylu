@@ -135,11 +135,17 @@ def test_what_is_water_made_of_gets_a_relevant_curated_answer():
 # Regression coverage: reported live that "what is water made up of" gave
 # age 11 and age 5 the exact same molecule/H2O explanation. All SCIENCE
 # entries now have a PRESCHOOL variant.
+def test_what_is_a_nucleus_gets_a_relevant_curated_answer():
+    answer = find_answer("what is a nucleus")
+    assert answer is not None
+    assert "cell" in answer.lower()
+
+
 def test_science_entries_are_tiered_for_preschool():
     for message in [
         "what is water made up of", "what is the sun", "what is the moon",
         "what is gravity", "why is the sky blue", "how do plants grow",
-        "water cycle", "what are the five senses",
+        "water cycle", "what are the five senses", "what is a nucleus",
     ]:
         preschool = find_answer(message, tier=AgeTier.PRESCHOOL)
         default = find_answer(message, tier=AgeTier.MIDDLE)

@@ -656,6 +656,28 @@ SCIENCE: list[QAEntry] = [
             ),
         },
     ),
+    # Regression coverage for a real gap found live: "what is a nucleus"
+    # produced garbled, unrelated text -- no curated SCIENCE entry touched
+    # cells/biology at all before this.
+    QAEntry(
+        "science", "what_is_a_cell",
+        ["what is a nucleus", "what is a cell", "what are cells", "what is inside a cell",
+         "what does a nucleus do"],
+        "Every living thing is made of tiny building blocks called cells -- your body alone "
+        "has trillions of them! Inside most cells is a nucleus, a control-center part that "
+        "holds the cell's DNA (its instructions) and directs everything the cell does, kind "
+        "of like a brain for that one cell. Different cells do different jobs -- skin cells "
+        "protect you, muscle cells help you move, nerve cells carry signals -- but almost "
+        "all of them have a nucleus running the show.",
+        answers_by_tier={
+            AgeTier.PRESCHOOL: (
+                "Everything alive -- you, animals, plants -- is built out of teeny tiny "
+                "building blocks called cells, way too small to see! Inside a lot of these "
+                "tiny cells is an even tinier part called a nucleus that tells the cell what "
+                "to do, kind of like a boss giving directions."
+            ),
+        },
+    ),
 ]
 
 ENGLISH: list[QAEntry] = [
@@ -1031,7 +1053,7 @@ _GENERIC_ANCHOR_STOPWORDS = {
     # phrases too -- "things", "different", "change", "happen", "where", and
     # "water"/"cycle" (a tie in "water cycle" -- max() picks the first,
     # "water") are all common enough to appear in unrelated messages.
-    "things", "different", "change", "happen", "where", "water", "cycle", "element",
+    "things", "different", "change", "happen", "where", "water", "cycle", "element", "inside",
 }
 
 _WORD_RE = re.compile(r"[a-z]+")
