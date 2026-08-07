@@ -177,6 +177,38 @@ def test_cell_wall_fuzzy_anchor_does_not_hijack_unrelated_animal_questions():
     assert find_answer("what is my favorite animal") is None
 
 
+# Regression coverage for a real gap found live: "what makes someone pretty
+# or not pretty" -- a general (and body-image-adjacent) question with no
+# curated match of its own -- got hijacked into rhyme_poetry's answer via
+# "makes" (the longest word in "what makes a poem a poem," an exact,
+# non-typo match). Prompted a full audit of every fuzzy-eligible keyword's
+# anchor in curated_qa.py; this and the following test pin a sample of what
+# that audit found and fixed.
+def test_makes_is_not_a_fuzzy_anchor_and_has_its_own_curated_answer():
+    # Body image is one of this app's named priority topics -- a general
+    # (non-self-negative) question in this space should get a thoughtful
+    # curated answer, not fall to the generative model.
+    answer = find_answer("what makes someone pretty or not pretty")
+    assert answer is not None
+    assert "opinion" in answer.lower()
+    assert "rhyme" not in answer.lower()  # the original mis-hijacked answer
+
+
+def test_common_words_found_in_anchor_audit_are_not_fuzzy_anchors():
+    # Each of these would otherwise fuzzy-hijack via an unrelated entry's
+    # keyword: "person" (moon_landing), "before" (spelling_rules), "world"
+    # (world_war_2), "structure" (cell_parts_overview), "number"
+    # (even_odd_numbers). Note: "what is the structure of the government"
+    # is NOT one of these -- it legitimately fuzzy-matches
+    # branches_of_government via the word "government" itself (that
+    # entry's own anchor, not "structure," and a correct match).
+    assert find_answer("who is your favorite person") is None
+    assert find_answer("what happened before recess") is None
+    assert find_answer("what is the biggest ocean in the world") is None
+    assert find_answer("what is the structure of a sentence") is None
+    assert find_answer("what number is my house") is None
+
+
 def test_periodic_table_and_elements_get_relevant_curated_answers():
     atom = find_answer("what is an atom")
     element = find_answer("what is an element")

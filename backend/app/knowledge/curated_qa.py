@@ -481,6 +481,42 @@ LIFE: list[QAEntry] = [
         "more than the mistake itself would have.",
         fuzzy_eligible=False,
     ),
+    # Live report: "what makes someone pretty or not pretty" -- a general,
+    # not self-directed-negative question -- correctly did NOT trip the
+    # guardrail's BODY_IMAGE detection (see llm_judge.py's _SELF_NEGATIVE
+    # pattern, which is specifically about a child saying something like
+    # "I'm ugly" about themselves, not general curiosity about
+    # attractiveness). But with no curated match, it fell to the
+    # generative model, which returned unrelated text. Body image is one
+    # of this app's explicitly named priority topics (see
+    # docs/PRODUCT_VISION.md) -- a general question in this space still
+    # deserves a thoughtful, protective answer instead of whatever the
+    # small local model happens to produce.
+    QAEntry(
+        "life", "what_makes_someone_pretty",
+        [
+            "what makes someone pretty", "what makes someone pretty or not pretty",
+            "what makes someone beautiful", "what makes someone ugly",
+            "am i pretty", "am i ugly", "am i beautiful", "why am i not pretty",
+        ],
+        "There's no real answer to that -- 'pretty' isn't a fixed fact about a person, it's "
+        "just an opinion, and opinions about looks are different across cultures, time "
+        "periods, and even from person to person. What actually matters far more than how "
+        "someone looks is who they are -- their kindness, humor, honesty, and how they "
+        "treat people. If you're asking because you're worried about how you look, that's a "
+        "really common feeling, and it's worth talking to someone you trust about it -- but "
+        "try not to let anyone's opinion about appearance, including your own, become the "
+        "measure of your worth.",
+        answers_by_tier={
+            AgeTier.PRESCHOOL: (
+                "There isn't one real answer to that! What people think looks 'pretty' is "
+                "just their own opinion, and different people like different things -- "
+                "there's no one right way to look. What really matters most is being kind "
+                "and being you."
+            ),
+        },
+        fuzzy_eligible=False,
+    ),
 ]
 
 # Basic science facts -- same reasoning as LIFE and the History/English/Math
@@ -1249,6 +1285,33 @@ _GENERIC_ANCHOR_STOPWORDS = {
     # and "elements" (plural -- "element" singular was already listed) have
     # the same shape of risk.
     "elements", "animal", "plant",
+    # Live report: "what makes someone pretty or not pretty" got hijacked
+    # into rhyme_poetry's answer -- its keyword "what makes a poem a poem"
+    # has "makes" as its longest word, an exact match against "makes" in
+    # the unrelated message. Prompted a full audit of every fuzzy-eligible
+    # keyword's anchor (not just a one-off patch for "makes") -- the words
+    # below are the ones found that are common enough in everyday
+    # conversation to plausibly appear in an unrelated message, unlike the
+    # vast majority of anchors in this file (topic-specific nouns like
+    # "columbus," "photosynthesis," "trigonometry"), which are exactly what
+    # this typo-tolerance mechanism is for and were left alone:
+    #   - "makes": why_is_the_sky_blue, cell_parts_overview, rhyme_poetry
+    #   - "person": moon_landing ("first person on the moon")
+    #   - "before": spelling_rules ("i before e")
+    #   - "world": world_war_2 (x3)
+    #   - "america"/"americans": native_americans
+    #   - "structure": cell_parts_overview -- would otherwise collide with
+    #     branches_of_government-style "structure of X" questions
+    #   - "parts": cell_parts_overview -- "parts of a car/speech/etc."
+    #   - "number"/"numbers": even_odd_numbers, rounding_numbers -- would
+    #     otherwise collide with unrelated "what is a prime number" etc.
+    #   - "difference": simile_metaphor, perimeter_vs_area
+    #   - "caused": slavery_civil_war ("what caused the civil war")
+    #   - "movement": mlk_civil_rights ("civil rights movement")
+    #   - "sentence": topic_sentence_paragraph
+    #   - "silent": spelling_rules ("silent e rule")
+    "makes", "person", "before", "world", "america", "americans", "structure", "parts",
+    "number", "numbers", "difference", "caused", "movement", "sentence", "silent",
 }
 
 _WORD_RE = re.compile(r"[a-z]+")
