@@ -69,6 +69,20 @@ def test_chat_skills_answer_gets_the_skills_illustration():
     assert body["topic"] == "skills"
 
 
+# Regression coverage for a real gap found live: "write a haiku about the
+# sun" got the what_is_a_haiku DEFINITION (via a fuzzy match on "haiku")
+# instead of an actual haiku -- checked here at the API/orchestrator level
+# since the fix is priority ordering in handle_chat_turn(), not just the
+# haiku module in isolation.
+def test_chat_write_a_haiku_about_the_sun_gets_an_actual_haiku_not_the_definition():
+    resp = client.post("/chat", json={"child": _child(), "message": "write a haiku about the sun"})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["action"] == "ALLOW"
+    assert "5-7-5" not in body["reply"]  # that's the definition entry's own text
+    assert "\n" in body["reply"]  # an actual haiku has line breaks
+
+
 def test_chat_columbus_keeps_its_specific_illustration_not_generic_history():
     resp = client.post("/chat", json={"child": _child(), "message": "how did christopher columbus get to america"})
     assert resp.status_code == 200

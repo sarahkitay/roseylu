@@ -15,7 +15,7 @@ from typing import Callable
 from app.generation.base_model import DEFAULT_BACKEND
 from app.guardrails.pipeline import DEFAULT_PIPELINE
 from app.illustration import topic_classifier, topic_responses
-from app.knowledge import curated_qa, quiz
+from app.knowledge import curated_qa, haiku, quiz
 from app.models.schemas import Action, ChatResponse, ChildProfile
 from app.persona.persona_engine import build_system_prompt
 from app.response.redirect_engine import build_generation_safety_fallback, build_redirect
@@ -96,6 +96,20 @@ def handle_chat_turn(
         # about columbus" should start a quiz, not trigger the Columbus
         # curated answer as if it were a factual question.
         reply, topic, topic_numbers = _resolve_quiz(child, message)
+
+        if reply is None:
+            # Checked before topic classification/curated_qa for the same
+            # reason as quiz detection above: "write a haiku about the sun"
+            # contains "sun," which topic_classifier would happily classify
+            # as the science topic, and contains "haiku," which fuzzy-matches
+            # curated_qa's what_is_a_haiku definition entry -- neither
+            # actually fulfills "write one." Only intercepts the small,
+            # hand-authored topic list haiku.py covers; anything else falls
+            # through to the normal flow below, same as if this check didn't
+            # exist.
+            haiku_reply = haiku.build_haiku_answer(message)
+            if haiku_reply is not None:
+                reply, topic, topic_numbers = haiku_reply, "english", []
 
         if reply is None:
             # Topic is classified from the CHILD's question, before
