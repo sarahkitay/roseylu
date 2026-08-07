@@ -656,28 +656,6 @@ SCIENCE: list[QAEntry] = [
             ),
         },
     ),
-    # Regression coverage for a real gap found live: "what is a nucleus"
-    # produced garbled, unrelated text -- no curated SCIENCE entry touched
-    # cells/biology at all before this.
-    QAEntry(
-        "science", "what_is_a_cell",
-        ["what is a nucleus", "what is a cell", "what are cells", "what is inside a cell",
-         "what does a nucleus do"],
-        "Every living thing is made of tiny building blocks called cells -- your body alone "
-        "has trillions of them! Inside most cells is a nucleus, a control-center part that "
-        "holds the cell's DNA (its instructions) and directs everything the cell does, kind "
-        "of like a brain for that one cell. Different cells do different jobs -- skin cells "
-        "protect you, muscle cells help you move, nerve cells carry signals -- but almost "
-        "all of them have a nucleus running the show.",
-        answers_by_tier={
-            AgeTier.PRESCHOOL: (
-                "Everything alive -- you, animals, plants -- is built out of teeny tiny "
-                "building blocks called cells, way too small to see! Inside a lot of these "
-                "tiny cells is an even tinier part called a nucleus that tells the cell what "
-                "to do, kind of like a boss giving directions."
-            ),
-        },
-    ),
     # Regression coverage for a real gap found live: right after correctly
     # answering "what is a nucleus," the natural follow-up "what about
     # mitochondria" produced garbled calculus-flavored text with zero
@@ -698,6 +676,160 @@ SCIENCE: list[QAEntry] = [
                 "Mitochondria are teeny tiny parts inside your cells that make energy, kind "
                 "of like a tiny battery! They take the food you eat and turn it into power "
                 "so your body can run, jump, and play."
+            ),
+        },
+    ),
+    # Rounding out the cell-parts cluster after nucleus and mitochondria --
+    # same reasoning, added proactively at the user's request rather than
+    # waiting for each specific structure to break live.
+    QAEntry(
+        "science", "cell_membrane",
+        ["what is a cell membrane", "what is the cell membrane", "what does a cell membrane do"],
+        "The cell membrane is a thin, flexible barrier that wraps around every cell, holding "
+        "everything inside together and controlling what gets in and out -- kind of like a "
+        "security guard with very picky rules. It lets in things the cell needs (like "
+        "nutrients and oxygen) and keeps out things that could harm it, while also letting "
+        "waste products leave. Every single cell -- bacteria, plant, or one of your own -- "
+        "has one.",
+        answers_by_tier={
+            AgeTier.PRESCHOOL: (
+                "A cell membrane is like a stretchy little bag that wraps all around a cell "
+                "and holds everything inside! It's picky about what it lets in and out, kind "
+                "of like a door that only opens for the right visitors."
+            ),
+        },
+    ),
+    QAEntry(
+        "science", "cell_wall",
+        ["what is a cell wall", "what is the cell wall", "do animal cells have a cell wall"],
+        "A cell wall is a rigid, tough layer that surrounds the cell membrane in plant cells "
+        "(and some other organisms, like bacteria and fungi) -- your own cells don't have "
+        "one. It gives plant cells their stiff shape and helps the whole plant stay upright, "
+        "the same way a house's frame holds its shape. That's a big part of why a tree "
+        "trunk feels hard while your own cells stay soft and flexible.",
+        answers_by_tier={
+            AgeTier.PRESCHOOL: (
+                "Plants have something your cells don't have -- a hard, stiff cell wall "
+                "around each of their cells! It's like a tiny suit of armor that helps a "
+                "plant stand up straight and tall, kind of like how a tree trunk feels hard "
+                "when you touch it."
+            ),
+        },
+    ),
+    QAEntry(
+        "science", "cytoplasm",
+        ["what is cytoplasm", "what does cytoplasm do"],
+        "Cytoplasm is the thick, jelly-like fluid that fills up the inside of a cell, "
+        "surrounding the nucleus and all the other tiny parts (like mitochondria) floating "
+        "within it. It's not just empty filler -- a lot of the chemical reactions that keep "
+        "a cell alive happen right in the cytoplasm, and it helps hold everything in place.",
+        answers_by_tier={
+            AgeTier.PRESCHOOL: (
+                "Cytoplasm is the squishy, jelly-like goo that fills up the inside of a "
+                "cell! It holds all the other tiny parts in place, kind of like how jello "
+                "holds fruit pieces inside it."
+            ),
+        },
+    ),
+    QAEntry(
+        "science", "dna_chromosomes",
+        ["what is dna", "what are chromosomes", "what is a chromosome"],
+        "DNA (short for deoxyribonucleic acid) is the instruction manual inside almost "
+        "every cell in your body -- a long, twisted molecule that carries all the "
+        "information for how you're built and how your body works, from your eye color to "
+        "how your cells function. DNA is packaged into tightly coiled bundles called "
+        "chromosomes, which sit inside the cell's nucleus; humans have 23 pairs of them (46 "
+        "total) in nearly every cell. You inherited half of your DNA from each parent, "
+        "which is why you might share traits with both.",
+        answers_by_tier={
+            AgeTier.PRESCHOOL: (
+                "DNA is like a tiny instruction book inside almost every part of your body "
+                "that tells it how to grow -- like what color your eyes should be! It's "
+                "folded up into little bundles called chromosomes, and you got some of your "
+                "instructions from your mom and some from your dad, which is why you might "
+                "look a little like both of them."
+            ),
+        },
+    ),
+    # what_is_a_cell is deliberately placed AFTER cell_membrane/cell_wall/
+    # cytoplasm/dna_chromosomes above, not before -- its own keyword "what
+    # is a cell" is a substring of "what is a cell membrane" and "what is
+    # a cell wall," so find_answer() (first-match-wins, in list order)
+    # would otherwise always shadow those more specific entries with this
+    # more general one. Caught by a test regression, not live.
+    QAEntry(
+        "science", "what_is_a_cell",
+        ["what is a nucleus", "what is a cell", "what are cells", "what is inside a cell",
+         "what does a nucleus do"],
+        "Every living thing is made of tiny building blocks called cells -- your body alone "
+        "has trillions of them! Inside most cells is a nucleus, a control-center part that "
+        "holds the cell's DNA (its instructions) and directs everything the cell does, kind "
+        "of like a brain for that one cell. Different cells do different jobs -- skin cells "
+        "protect you, muscle cells help you move, nerve cells carry signals -- but almost "
+        "all of them have a nucleus running the show.",
+        answers_by_tier={
+            AgeTier.PRESCHOOL: (
+                "Everything alive -- you, animals, plants -- is built out of teeny tiny "
+                "building blocks called cells, way too small to see! Inside a lot of these "
+                "tiny cells is an even tinier part called a nucleus that tells the cell what "
+                "to do, kind of like a boss giving directions."
+            ),
+        },
+    ),
+    # Elements/periodic table cluster -- same "add it before it breaks live"
+    # reasoning as the cell parts above.
+    QAEntry(
+        "science", "what_is_an_atom",
+        ["what is an atom", "what are atoms", "what is inside an atom", "what is atom made of"],
+        "Atoms are the tiny building blocks that everything in the universe is made of -- "
+        "you, air, water, rocks, even light bulbs. They're so small that a single grain of "
+        "sand contains more atoms than there are grains of sand on every beach on Earth. "
+        "Every atom has a nucleus (a dense center made of protons and neutrons) with even "
+        "tinier particles called electrons zooming around it. How many protons an atom has "
+        "is exactly what makes an element the element it is.",
+        answers_by_tier={
+            AgeTier.PRESCHOOL: (
+                "Everything in the whole world -- you, your toys, the air, water -- is made "
+                "of teeny tiny pieces called atoms, way too small to ever see, even with a "
+                "magnifying glass! There are so many atoms in just one tiny speck of dust "
+                "that you couldn't count them all even if you tried your whole life."
+            ),
+        },
+    ),
+    QAEntry(
+        "science", "what_is_an_element",
+        ["what is an element", "what are elements"],
+        "An element is a pure substance made of just one type of atom -- gold is made only "
+        "of gold atoms, oxygen only of oxygen atoms, and so on. Scientists have found about "
+        "118 elements so far, each with its own name, symbol (like O for oxygen or Fe for "
+        "iron), and set of properties. Most things around you aren't pure elements though "
+        "-- they're combinations, like water (hydrogen and oxygen combined) or table salt "
+        "(sodium and chlorine combined).",
+        answers_by_tier={
+            AgeTier.PRESCHOOL: (
+                "An element is a special kind of building-block stuff made of only ONE kind "
+                "of tiny piece. Gold is made only of gold pieces, and the air you breathe "
+                "has oxygen, which is made only of oxygen pieces. Most things around you are "
+                "actually a few different elements mixed together, like a recipe!"
+            ),
+        },
+    ),
+    QAEntry(
+        "science", "what_is_the_periodic_table",
+        ["periodic table", "table of elements", "what is the periodic table"],
+        "The periodic table is a big chart that organizes every known element, arranged by "
+        "how many protons each one has (its atomic number) -- starting with hydrogen (1 "
+        "proton) and going up from there. Elements in the same column tend to behave in "
+        "similar ways chemically, which is what makes the table so useful: once scientists "
+        "noticed the pattern, they could even predict elements that hadn't been discovered "
+        "yet before they were found. Each box usually shows the element's symbol, name, "
+        "atomic number, and atomic weight.",
+        answers_by_tier={
+            AgeTier.PRESCHOOL: (
+                "The periodic table is like a big chart that lists every different kind of "
+                "tiny building-block stuff (called elements) that scientists have found! "
+                "It's organized in a special order so that stuff that acts similarly gets "
+                "grouped near each other, kind of like organizing toys by color and type."
             ),
         },
     ),
@@ -1077,6 +1209,13 @@ _GENERIC_ANCHOR_STOPWORDS = {
     # "water"/"cycle" (a tie in "water cycle" -- max() picks the first,
     # "water") are all common enough to appear in unrelated messages.
     "things", "different", "change", "happen", "where", "water", "cycle", "element", "inside",
+    # From the cell-parts/elements cluster: "do animal cells have a cell
+    # wall"'s longest word is "animal" (6 chars) -- an everyday word that
+    # shows up constantly in unrelated messages (topic_classifier.py has a
+    # whole "animals" illustration topic for exactly this reason). "plant"
+    # and "elements" (plural -- "element" singular was already listed) have
+    # the same shape of risk.
+    "elements", "animal", "plant",
 }
 
 _WORD_RE = re.compile(r"[a-z]+")

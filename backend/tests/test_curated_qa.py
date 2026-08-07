@@ -147,12 +147,42 @@ def test_what_about_mitochondria_gets_a_relevant_curated_answer():
     assert "energy" in answer.lower()
 
 
+def test_remaining_cell_parts_get_relevant_curated_answers():
+    membrane = find_answer("what is a cell membrane")
+    wall = find_answer("what is a cell wall")
+    cytoplasm = find_answer("what is cytoplasm")
+    dna = find_answer("what is dna")
+    assert membrane is not None and "barrier" in membrane.lower()
+    assert wall is not None and "plant" in wall.lower()
+    assert cytoplasm is not None and "jelly" in cytoplasm.lower()
+    assert dna is not None and "chromosome" in dna.lower()
+
+
+def test_cell_wall_fuzzy_anchor_does_not_hijack_unrelated_animal_questions():
+    # "do animal cells have a cell wall"'s longest word is "animal" -- a
+    # common word (topic_classifier.py has a whole "animals" illustration
+    # topic) that must not become a fuzzy-match anchor, or any unrelated
+    # message mentioning an animal would get hijacked into this answer.
+    assert find_answer("what is my favorite animal") is None
+
+
+def test_periodic_table_and_elements_get_relevant_curated_answers():
+    atom = find_answer("what is an atom")
+    element = find_answer("what is an element")
+    table = find_answer("periodic table")
+    assert atom is not None and "nucleus" in atom.lower()
+    assert element is not None and "118" in element
+    assert table is not None and "atomic number" in table.lower()
+
+
 def test_science_entries_are_tiered_for_preschool():
     for message in [
         "what is water made up of", "what is the sun", "what is the moon",
         "what is gravity", "why is the sky blue", "how do plants grow",
         "water cycle", "what are the five senses", "what is a nucleus",
-        "what about mitochondria",
+        "what about mitochondria", "what is a cell membrane", "what is a cell wall",
+        "what is cytoplasm", "what is dna", "what is an atom", "what is an element",
+        "periodic table",
     ]:
         preschool = find_answer(message, tier=AgeTier.PRESCHOOL)
         default = find_answer(message, tier=AgeTier.MIDDLE)
