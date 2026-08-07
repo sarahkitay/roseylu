@@ -517,6 +517,36 @@ LIFE: list[QAEntry] = [
         },
         fuzzy_eligible=False,
     ),
+    # Live report: "how do i make friends" -- a completely benign, common
+    # social-skills question -- produced garbled, unrelated text (no
+    # curated LIFE entry addressed it; friend_wont_play_with_me above is
+    # about a specific friend, not this more general "how do I make
+    # friends at all" question).
+    QAEntry(
+        "life", "how_to_make_friends",
+        [
+            "how do i make friends", "how to make friends", "how can i make friends",
+            "how do you make friends", "i want more friends", "i don't have any friends",
+        ],
+        "That's such a common thing to wonder about, and it's completely learnable. Making "
+        "friends usually starts small -- find something you both like (a game, a subject, a "
+        "hobby) and talk about that, or ask a genuine question about what someone's "
+        "interested in. Being a good listener, sharing, and being kind consistently matter "
+        "more than being the most interesting person in the room. It's normal for it to "
+        "take some time and a few awkward tries -- most friendships start with someone "
+        "taking a small first step, like saying hi or asking to sit together. If it's been "
+        "feeling really hard or lonely, it can help to talk to a trusted adult too, like a "
+        "teacher or school counselor.",
+        answers_by_tier={
+            AgeTier.PRESCHOOL: (
+                "Making friends can be as easy as saying 'hi, want to play?' or sharing "
+                "your toys! Being kind and taking turns helps too. It's okay if it feels a "
+                "little scary to ask -- lots of kids feel that way, and most people say yes "
+                "when you ask nicely."
+            ),
+        },
+        fuzzy_eligible=False,
+    ),
 ]
 
 # Basic science facts -- same reasoning as LIFE and the History/English/Math

@@ -184,6 +184,12 @@ def test_cell_wall_fuzzy_anchor_does_not_hijack_unrelated_animal_questions():
 # non-typo match). Prompted a full audit of every fuzzy-eligible keyword's
 # anchor in curated_qa.py; this and the following test pin a sample of what
 # that audit found and fixed.
+def test_how_to_make_friends_gets_a_relevant_curated_answer():
+    answer = find_answer("how do i make friends")
+    assert answer is not None
+    assert "kind" in answer.lower()
+
+
 def test_makes_is_not_a_fuzzy_anchor_and_has_its_own_curated_answer():
     # Body image is one of this app's named priority topics -- a general
     # (non-self-negative) question in this space should get a thoughtful
