@@ -679,6 +679,39 @@ SCIENCE: list[QAEntry] = [
             ),
         },
     ),
+    # Regression coverage for a real gap found live: "what are all the
+    # parts of a cell" doesn't exact-substring-match any single entry
+    # below, so it fell to the fuzzy typo fallback -- where "cells" (the
+    # anchor from what_is_a_cell's "what are cells" keyword) is a 0.89
+    # match against "cell" in the message, close enough to clear the typo
+    # threshold even though it's not a typo. That returned the narrow
+    # nucleus-focused answer for what's actually an overview question. A
+    # dedicated overview entry, matched by exact substring (checked before
+    # any fuzzy fallback), fixes this directly rather than tuning the
+    # threshold or anchor further.
+    QAEntry(
+        "science", "cell_parts_overview",
+        ["parts of a cell", "what are the parts of a cell", "what are all the parts of a cell",
+         "structure of a cell", "what makes up a cell"],
+        "A cell has several important parts working together. The cell membrane is a thin "
+        "covering that holds everything inside and controls what goes in and out. Inside, "
+        "the cytoplasm is a jelly-like fluid that fills the cell and holds the other parts "
+        "in place. The nucleus acts like the cell's control center, holding its DNA (its "
+        "instruction manual, organized into chromosomes) and directing what the cell does. "
+        "Mitochondria act like power plants, turning food and oxygen into usable energy. "
+        "Plant cells (and some other organisms) also have a rigid cell wall around the "
+        "outside for extra structure and support, which animal cells don't have.",
+        answers_by_tier={
+            AgeTier.PRESCHOOL: (
+                "A cell has lots of tiny parts, kind of like a tiny room with different "
+                "jobs happening inside! The cell membrane is like a stretchy wall holding "
+                "everything in. Inside is squishy cytoplasm, and floating in it is the "
+                "nucleus, which is like the boss telling the cell what to do, plus tiny "
+                "mitochondria that make energy like little batteries. Plant cells also have "
+                "an extra hard cell wall around them, like a suit of armor!"
+            ),
+        },
+    ),
     # Rounding out the cell-parts cluster after nucleus and mitochondria --
     # same reasoning, added proactively at the user's request rather than
     # waiting for each specific structure to break live.

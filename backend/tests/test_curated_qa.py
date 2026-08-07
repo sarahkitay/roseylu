@@ -158,6 +158,17 @@ def test_remaining_cell_parts_get_relevant_curated_answers():
     assert dna is not None and "chromosome" in dna.lower()
 
 
+# Regression coverage for a real gap found live: "what are all the parts of
+# a cell" got the narrow nucleus-only answer instead of a comprehensive
+# overview, via a fuzzy "cells"~"cell" coincidence (0.89 similarity, not an
+# actual typo) that a dedicated overview entry now pre-empts.
+def test_cell_parts_overview_covers_all_parts_not_just_the_nucleus():
+    answer = find_answer("what are all the parts of a cell")
+    assert answer is not None
+    for part in ["membrane", "cytoplasm", "nucleus", "mitochondria"]:
+        assert part in answer.lower(), f"overview answer missing {part!r}"
+
+
 def test_cell_wall_fuzzy_anchor_does_not_hijack_unrelated_animal_questions():
     # "do animal cells have a cell wall"'s longest word is "animal" -- a
     # common word (topic_classifier.py has a whole "animals" illustration
@@ -182,7 +193,7 @@ def test_science_entries_are_tiered_for_preschool():
         "water cycle", "what are the five senses", "what is a nucleus",
         "what about mitochondria", "what is a cell membrane", "what is a cell wall",
         "what is cytoplasm", "what is dna", "what is an atom", "what is an element",
-        "periodic table",
+        "periodic table", "what are all the parts of a cell",
     ]:
         preschool = find_answer(message, tier=AgeTier.PRESCHOOL)
         default = find_answer(message, tier=AgeTier.MIDDLE)
