@@ -678,6 +678,29 @@ SCIENCE: list[QAEntry] = [
             ),
         },
     ),
+    # Regression coverage for a real gap found live: right after correctly
+    # answering "what is a nucleus," the natural follow-up "what about
+    # mitochondria" produced garbled calculus-flavored text with zero
+    # connection to the question -- a separate, focused entry rather than
+    # folding it into what_is_a_cell above, matching the existing
+    # sun/moon/gravity granularity (one clear structure per entry).
+    QAEntry(
+        "science", "what_is_mitochondria",
+        ["what is mitochondria", "what are mitochondria", "what about mitochondria",
+         "what do mitochondria do", "what is a mitochondrion"],
+        "Mitochondria are tiny structures inside your cells that work like power plants -- "
+        "they turn the food you eat and the oxygen you breathe into usable energy the cell "
+        "can run on. That's why they're often nicknamed 'the powerhouse of the cell.' A "
+        "single cell can have hundreds or even thousands of mitochondria, especially busy "
+        "cells like muscle cells that need a lot of energy to keep moving.",
+        answers_by_tier={
+            AgeTier.PRESCHOOL: (
+                "Mitochondria are teeny tiny parts inside your cells that make energy, kind "
+                "of like a tiny battery! They take the food you eat and turn it into power "
+                "so your body can run, jump, and play."
+            ),
+        },
+    ),
 ]
 
 ENGLISH: list[QAEntry] = [

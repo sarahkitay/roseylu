@@ -141,11 +141,18 @@ def test_what_is_a_nucleus_gets_a_relevant_curated_answer():
     assert "cell" in answer.lower()
 
 
+def test_what_about_mitochondria_gets_a_relevant_curated_answer():
+    answer = find_answer("what about mitochondria")
+    assert answer is not None
+    assert "energy" in answer.lower()
+
+
 def test_science_entries_are_tiered_for_preschool():
     for message in [
         "what is water made up of", "what is the sun", "what is the moon",
         "what is gravity", "why is the sky blue", "how do plants grow",
         "water cycle", "what are the five senses", "what is a nucleus",
+        "what about mitochondria",
     ]:
         preschool = find_answer(message, tier=AgeTier.PRESCHOOL)
         default = find_answer(message, tier=AgeTier.MIDDLE)
