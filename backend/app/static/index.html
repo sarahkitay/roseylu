@@ -865,6 +865,24 @@ function buildScienceScene() {
   </svg>`;
 }
 
+// Subject-neutral science scene (a bubbling beaker) for SCIENCE-category
+// curated answers that AREN'T astronomy -- water, plants, the five senses,
+// etc. Kept separate from buildScienceScene() above: reusing the
+// sun/planets scene for those used to render "the sun and some planets"
+// right next to an answer about water molecules, a real mismatch caught
+// live (see orchestrator.py's _SUBJECT_FALLBACK_TOPIC).
+function buildScienceGeneralScene() {
+  return `<svg viewBox="0 0 160 130" xmlns="http://www.w3.org/2000/svg">
+    <rect x="60" y="14" width="40" height="12" rx="3" fill="#8B5A2B" stroke="${INK}" stroke-width="3"/>
+    <path class="pop-item" d="M66,26 L66,55 L34,106 Q28,116 40,116 L120,116 Q132,116 126,106 L94,55 L94,26 Z" fill="#CFEFFF" stroke="${INK}" stroke-width="4"/>
+    <path d="M50,90 L110,90 L126,106 Q132,116 120,116 L40,116 Q28,116 34,106 Z" fill="#58CC02" opacity="0.55"/>
+    <circle class="pop-item twinkle" style="animation-delay:0.1s" cx="65" cy="88" r="7" fill="#58CC02" stroke="${INK}" stroke-width="2"/>
+    <circle class="pop-item twinkle" style="animation-delay:0.3s" cx="88" cy="98" r="5.5" fill="#FF9600" stroke="${INK}" stroke-width="2"/>
+    <circle class="pop-item twinkle" style="animation-delay:0.5s" cx="75" cy="76" r="4.5" fill="#1CB0F6" stroke="${INK}" stroke-width="2"/>
+    <text x="80" y="126" font-size="12" text-anchor="middle" fill="${INK}" font-family="sans-serif">science time</text>
+  </svg>`;
+}
+
 function critterSVG(x, color, delay) {
   return `<g class="pop-item" style="animation-delay:${delay}s">
     <ellipse cx="${x}" cy="70" rx="34" ry="26" fill="${color}" stroke="${INK}" stroke-width="4"/>
@@ -1008,6 +1026,7 @@ const ILLUSTRATION_BUILDERS = {
   fractions: buildFractionsScene,
   shapes: () => buildShapesScene(),
   science: () => buildScienceScene(),
+  "science-general": () => buildScienceGeneralScene(),
   animals: () => buildAnimalsScene(),
   reading: () => buildReadingScene(),
   english: () => buildReadingScene(),

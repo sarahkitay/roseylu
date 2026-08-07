@@ -68,6 +68,24 @@ def test_chat_columbus_keeps_its_specific_illustration_not_generic_history():
     assert body["topic"] == "columbus"
 
 
+# Regression coverage for a real gap found live: "what is water made up of"
+# (a SCIENCE entry with no astronomy keyword match) fell back to literal
+# topic="science", which renders the sun/planets scene -- a real mismatch
+# next to an answer about water molecules. Non-astronomy SCIENCE answers
+# should get the subject-neutral "science-general" scene instead, while an
+# actual astronomy question keeps the sun/planets one.
+def test_chat_non_astronomy_science_gets_general_scene_not_sun_and_planets():
+    resp = client.post("/chat", json={"child": _child(), "message": "what is water made up of"})
+    assert resp.status_code == 200
+    assert resp.json()["topic"] == "science-general"
+
+
+def test_chat_astronomy_science_keeps_the_sun_and_planets_scene():
+    resp = client.post("/chat", json={"child": _child(), "message": "what is the sun"})
+    assert resp.status_code == 200
+    assert resp.json()["topic"] == "science"
+
+
 def test_chat_math_topic_uses_templated_answer_not_the_model(monkeypatch):
     # The generative model should never even be called for a numeric math
     # topic -- if it were, this stub's obviously-wrong text would leak

@@ -33,6 +33,25 @@ _SUBJECT_ILLUSTRATION_OVERLAP: dict[str, tuple[str, ...]] = {
     "science": ("science",),
 }
 
+# The generic illustration to fall back to per subject, when
+# topic_classifier's own guess isn't one of the overlaps above. Distinct
+# from the subject name itself for "science": topic_classifier's "science"
+# topic renders the sun/planets astronomy scene specifically (correct when
+# it actually matched a sun/moon/gravity/sky keyword), but most SCIENCE
+# entries aren't astronomy (water, plants, the five senses) -- found live
+# when "what is water made up of" (no topic_classifier match at all) fell
+# back to literal topic="science" and rendered the sun/planets scene next
+# to an answer about water molecules. "science-general" is a separate,
+# subject-neutral scene (see buildScienceGeneralScene in index.html) used
+# whenever a SCIENCE entry answers without an astronomy-specific match.
+_SUBJECT_FALLBACK_TOPIC: dict[str, str] = {
+    "history": "history",
+    "english": "english",
+    "math": "math",
+    "life": "life",
+    "science": "science-general",
+}
+
 
 def _resolve_quiz(child: ChildProfile, message: str) -> tuple[str | None, str | None, list[int]]:
     """Returns (reply, topic, topic_numbers) if this turn is quiz-related
@@ -135,7 +154,7 @@ def handle_chat_turn(
                 if entry_subject is not None:
                     keep_topic_as_is = topic in _SUBJECT_ILLUSTRATION_OVERLAP.get(entry_subject, ())
                     if not keep_topic_as_is:
-                        topic = entry_subject
+                        topic = _SUBJECT_FALLBACK_TOPIC.get(entry_subject, entry_subject)
                         topic_numbers = []
             else:
                 system_prompt = build_system_prompt(child)
