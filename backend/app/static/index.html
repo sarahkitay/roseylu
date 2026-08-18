@@ -1161,13 +1161,17 @@ function celebrateOn(card) {
   setTimeout(() => burst.remove(), 1100);
 }
 
-// Quiz completion is detected from the reply text itself (see
-// app/knowledge/quiz.py::handle_answer, which always ends a finished quiz
-// with this exact phrase) rather than a dedicated API field -- the backend
-// doesn't otherwise distinguish "quiz finished" from any other ALLOW reply,
-// and adding a field for one UI flourish wasn't worth a schema change.
+// Quiz/literacy-game completion is detected from the reply text itself (see
+// app/knowledge/quiz.py::handle_answer and
+// app/knowledge/literacy_games.py::handle_answer, which always end a
+// finished round with one of these exact phrases) rather than a dedicated
+// API field -- the backend doesn't otherwise distinguish "game finished"
+// from any other ALLOW reply, and adding a field for one UI flourish wasn't
+// worth a schema change.
 function maybeCelebrate(replyText, card) {
-  if (replyText.includes("That's the quiz!")) celebrateOn(card);
+  if (replyText.includes("That's the quiz!") || replyText.includes("That's the game!")) {
+    celebrateOn(card);
+  }
 }
 
 function typewriterReveal(fullText, bubble, mini, illustrationCardEl, frames, onComplete) {

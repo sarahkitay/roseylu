@@ -24,6 +24,12 @@ Setup:
 Usage:
     python3 training/scripts/simulate_student_eval.py --provider anthropic --grades 2-9 --questions-per-grade 3
     python3 training/scripts/simulate_student_eval.py --provider openai --grades 4,7,10 --no-judge
+    python3 training/scripts/simulate_student_eval.py --budget 0.50   # override the default $2 spend cap
+
+Spend cap: defaults to $2.00 (see training/scripts/cost_tracker.py), overridable
+with --budget or $DEV_TOOLING_API_BUDGET_USD. Checked before every external API
+call; the run stops cleanly and writes out whatever results it already has once
+the cap is reached, rather than continuing to spend or crashing.
 """
 from __future__ import annotations
 
@@ -43,6 +49,8 @@ load_dotenv(_ROOT / ".env")
 
 from app.models.schemas import ChildProfile  # noqa: E402
 from app.orchestrator import handle_chat_turn  # noqa: E402
+
+from cost_tracker import BudgetExceeded, CostTracker, DEFAULT_BUDGET_USD  # noqa: E402
 
 # Rough US grade -> age mapping, clamped to this product's supported 7-15
 # range (backend/app/models/schemas.py::ChildProfile). Approximate on
@@ -82,7 +90,7 @@ def _ordinal(n: int) -> str:
     return f"{n}{suffix}"
 
 
-def call_anthropic(system: str, user: str, model: str, max_tokens: int = 300) -> str:
+def call_anthropic(system: str, user: str, model: str, max_tokens: int = 300) -> tuple[str, int, int]:
     import anthropic
 
     client = anthropic.Anthropic()
@@ -92,10 +100,11 @@ def call_anthropic(system: str, user: str, model: str, max_tokens: int = 300) ->
         system=system,
         messages=[{"role": "user", "content": user}],
     )
-    return "".join(block.text for block in response.content if getattr(block, "type", None) == "text").strip()
+    text = "".join(block.text for block in response.content if getattr(block, "type", None) == "text").strip()
+    return text, response.usage.input_tokens, response.usage.output_tokens
 
 
-def call_openai(system: str, user: str, model: str, max_tokens: int = 300) -> str:
+def call_openai(system: str, user: str, model: str, max_tokens: int = 300) -> tuple[str, int, int]:
     import openai
 
     client = openai.OpenAI()
@@ -104,26 +113,34 @@ def call_openai(system: str, user: str, model: str, max_tokens: int = 300) -> st
         max_tokens=max_tokens,
         messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
     )
-    return (response.choices[0].message.content or "").strip()
+    text = (response.choices[0].message.content or "").strip()
+    return text, response.usage.prompt_tokens, response.usage.completion_tokens
 
 
-def call_llm(provider: str, system: str, user: str, model: str) -> str:
+def call_llm(provider: str, system: str, user: str, model: str, tracker: CostTracker) -> str:
+    # Checked immediately before every network call -- this is the actual
+    # spend cap, not just bookkeeping. See cost_tracker.CostTracker for why
+    # enforcement is pre-request rather than mid-request.
+    tracker.check_budget_or_raise()
     if provider == "anthropic":
-        return call_anthropic(system, user, model)
-    if provider == "openai":
-        return call_openai(system, user, model)
-    raise ValueError(f"unknown provider: {provider}")
+        text, in_tok, out_tok = call_anthropic(system, user, model)
+    elif provider == "openai":
+        text, in_tok, out_tok = call_openai(system, user, model)
+    else:
+        raise ValueError(f"unknown provider: {provider}")
+    tracker.record_usage(model, in_tok, out_tok)
+    return text
 
 
-def generate_student_question(provider: str, model: str, grade: int, age: int) -> str:
+def generate_student_question(provider: str, model: str, grade: int, age: int, tracker: CostTracker) -> str:
     system = _STUDENT_SYSTEM_PROMPT.format(grade_ordinal=_ordinal(grade), age=age)
-    return call_llm(provider, system, "Ask your question now.", model)
+    return call_llm(provider, system, "Ask your question now.", model, tracker)
 
 
-def judge_reply(provider: str, model: str, age: int, question: str, reply: str) -> dict:
+def judge_reply(provider: str, model: str, age: int, question: str, reply: str, tracker: CostTracker) -> dict:
     system = _JUDGE_SYSTEM_PROMPT.format(age=age)
     user = f"Child's question: {question}\n\nChatbot's reply: {reply}"
-    raw = call_llm(provider, system, user, model)
+    raw = call_llm(provider, system, user, model, tracker)
     try:
         return json.loads(raw)
     except json.JSONDecodeError:
@@ -154,6 +171,9 @@ def main() -> None:
     parser.add_argument("--questions-per-grade", type=int, default=3)
     parser.add_argument("--no-judge", action="store_true", help="skip LLM-judge scoring")
     parser.add_argument("--out", type=Path, default=None)
+    parser.add_argument("--budget", type=float, default=None,
+                         help=f"hard USD cap on external API spend for this run "
+                              f"(default ${DEFAULT_BUDGET_USD:.2f}, or $DEV_TOOLING_API_BUDGET_USD)")
     args = parser.parse_args()
 
     provider = args.provider or ("anthropic" if os.environ.get("ANTHROPIC_API_KEY") else "openai" if os.environ.get("OPENAI_API_KEY") else None)
@@ -170,16 +190,30 @@ def main() -> None:
     if not grades:
         raise SystemExit(f"no valid grades parsed from {args.grades!r} (supported: 1-10)")
 
+    tracker = CostTracker(budget_usd=args.budget)
+
     print(f"student simulator: {provider}/{model}")
     print(f"judge: {'disabled' if args.no_judge else f'{judge_provider}/{judge_model}'}")
-    print(f"grades: {grades}, {args.questions_per_grade} question(s) each\n")
+    print(f"grades: {grades}, {args.questions_per_grade} question(s) each")
+    print(f"budget: ${tracker.budget_usd:.2f}\n")
 
     results = []
+    stopped_on_budget = False
     for grade in grades:
+        if stopped_on_budget:
+            break
         age = GRADE_TO_AGE[grade]
         for i in range(args.questions_per_grade):
             try:
-                question = generate_student_question(provider, model, grade, age)
+                question = generate_student_question(provider, model, grade, age, tracker)
+            except BudgetExceeded as e:
+                # Checked first, before the broad except below -- BudgetExceeded
+                # is a RuntimeError, and the broad handler would otherwise
+                # silently swallow it as "question generation failed" and keep
+                # looping past the cap instead of actually stopping the run.
+                print(f"\n{e}")
+                stopped_on_budget = True
+                break
             except Exception as e:  # noqa: BLE001 -- report and continue, don't kill the whole run
                 print(f"[grade {grade}] question generation failed: {e}")
                 continue
@@ -198,7 +232,12 @@ def main() -> None:
 
             if not args.no_judge and response.action == "ALLOW":
                 try:
-                    entry["judge"] = judge_reply(judge_provider, judge_model, age, question, response.reply)
+                    entry["judge"] = judge_reply(judge_provider, judge_model, age, question, response.reply, tracker)
+                except BudgetExceeded as e:
+                    print(f"\n{e}")
+                    results.append(entry)
+                    stopped_on_budget = True
+                    break
                 except Exception as e:  # noqa: BLE001
                     entry["judge"] = {"error": str(e)}
 
@@ -208,6 +247,8 @@ def main() -> None:
                 j = entry["judge"]
                 judge_summary = f" | judge: coherence={j['coherence']} correctness={j['correctness']} age_fit={j['age_fit']}"
             print(f"[grade {grade}] {entry['action']:9s} topic={str(entry['topic']):14s} \"{question[:70]}\"{judge_summary}")
+
+    print(f"\nestimated spend: ${tracker.spent_usd:.4f} of ${tracker.budget_usd:.2f} budget")
 
     out_path = args.out or (_ROOT / "training" / "runs" / "eval" / f"simulated_student_eval_{int(time.time())}.json")
     out_path.parent.mkdir(parents=True, exist_ok=True)

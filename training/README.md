@@ -113,16 +113,32 @@ replies scored low -- direct candidates for a new `curated_qa.py` entry or
 ```bash
 pip install -r training/requirements-eval.txt
 cp .env.example .env   # fill in ANTHROPIC_API_KEY and/or OPENAI_API_KEY
-python3 training/scripts/simulate_student_eval.py --grades 2-9 --questions-per-grade 3
+python3 training/scripts/simulate_student_eval.py --grades 2-9 --questions-per-grade 3 --budget 0.50
 ```
 
-This has NOT been run against real API keys in this environment (none are
-configured here) -- the wiring is verified with mocked LLM calls (the
-orchestrator call, JSON output, and summary logic all work end to end), but
-the actual quality of the simulated questions and judge scores depends on
-the real models, which nobody has evaluated yet. Run it and read the
-results critically before trusting the "low-quality" flags -- an LLM judge
-is itself an unverified heuristic, not ground truth.
+Run against this session's real API keys, this worked end to end -- the
+student-simulator questions read as genuinely kid-like ("why do we have to
+learn cursive if nobody even uses it anymore"), and the orchestrator/JSON/
+summary wiring all held up on real traffic, not just mocked calls. Read the
+judge's "low-quality" flags critically regardless -- an LLM judge is itself
+an unverified heuristic, not ground truth.
+
+**Spend cap:** both this script and the teacher review loop below default to
+a **$2.00** hard cap on external API spend per run (`training/scripts/
+cost_tracker.py`, overridable with `--budget` or `$DEV_TOOLING_API_BUDGET_USD`).
+Checked before every external call, using each response's real token usage
+against a small hand-maintained pricing table -- an unpriced model fails
+loudly rather than being silently tracked as free. Enforcement is
+pre-request, not mid-request (a call already in flight when the cap is hit
+is allowed to finish, so actual spend can exceed the cap by at most one
+request's worth) -- the same trade-off Anthropic's own Managed Agents
+session budgets document. Verified live: a `--budget 0.001` run correctly
+let two in-flight calls finish, refused the third, and still wrote out the
+partial results instead of crashing (see `backend/tests/test_cost_tracker.py`
+for the unit coverage). The OpenAI half of the pricing table is last-known
+public `gpt-4o`/`gpt-4o-mini` rates, not independently verified here --
+check against OpenAI's own pricing page before trusting it beyond "stop an
+obvious runaway."
 
 ## Teaching Rosey to improve herself: the teacher review loop
 
@@ -133,8 +149,17 @@ happens. Set `TEACHER_BACKEND` (`anthropic` or `openai` -- aliases like
 `claude`/`gpt` work too) and `TEACHER_MODEL` in `.env`, then:
 
 ```bash
-python3 training/scripts/teacher_review_loop.py --watch --interval 30
+python3 training/scripts/teacher_review_loop.py --watch --interval 30 --budget 2.00
 ```
+
+Same $2.00 default spend cap as the eval harness above (`--budget` /
+`$DEV_TOOLING_API_BUDGET_USD`) -- in `--watch` mode it's a cap for the whole
+watch session, not reset per poll. On hitting it, the loop stops cleanly
+(not silently retried as a transient failure -- `BudgetExceeded` is caught
+before the generic error handler that would otherwise treat it that way)
+and checkpoints exactly at the line it stopped on, so a later run with a
+raised budget resumes there instead of re-paying for or skipping
+already-reviewed lines.
 
 It tails `training/data/corpus/live_interactions.jsonl` (already written by
 `online_trainer.py` for every ALLOW-path exchange), sends each new one to

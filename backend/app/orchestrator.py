@@ -15,7 +15,7 @@ from typing import Callable
 from app.generation.base_model import DEFAULT_BACKEND
 from app.guardrails.pipeline import DEFAULT_PIPELINE
 from app.illustration import topic_classifier, topic_responses
-from app.knowledge import curated_qa, haiku, quiz
+from app.knowledge import curated_qa, haiku, literacy_games, quiz
 from app.models.schemas import Action, ChatResponse, ChildProfile
 from app.persona.persona_engine import build_system_prompt
 from app.response.redirect_engine import build_generation_safety_fallback, build_redirect
@@ -70,6 +70,22 @@ def _resolve_quiz(child: ChildProfile, message: str) -> tuple[str | None, str | 
     return None, None, []
 
 
+def _resolve_literacy_game(child: ChildProfile, message: str) -> tuple[str | None, str | None, list[int]]:
+    """Same shape as _resolve_quiz above, for the letter-sounds/rhyming
+    mini-games in app/knowledge/literacy_games.py. Reuses the "reading"
+    illustration (ABC letters over an open book) -- already the right
+    picture for this content, no new scene needed.
+    """
+    if literacy_games.has_active_session(child.child_id):
+        return literacy_games.handle_answer(child.child_id, message), "reading", []
+
+    game_id = literacy_games.detect_literacy_game_request(message)
+    if game_id is not None:
+        return literacy_games.start_game(child.child_id, game_id), "reading", []
+
+    return None, None, []
+
+
 def handle_chat_turn(
     child: ChildProfile,
     message: str,
@@ -96,6 +112,12 @@ def handle_chat_turn(
         # about columbus" should start a quiz, not trigger the Columbus
         # curated answer as if it were a factual question.
         reply, topic, topic_numbers = _resolve_quiz(child, message)
+
+        if reply is None:
+            # Same reasoning as quiz state above, for the letter-sounds/
+            # rhyming mini-games -- an active game's next message is the
+            # child's answer to the current round, not a new question.
+            reply, topic, topic_numbers = _resolve_literacy_game(child, message)
 
         if reply is None:
             # Checked before topic classification/curated_qa for the same

@@ -83,6 +83,26 @@ def test_chat_write_a_haiku_about_the_sun_gets_an_actual_haiku_not_the_definitio
     assert "\n" in body["reply"]  # an actual haiku has line breaks
 
 
+def test_chat_letter_game_starts_and_uses_the_reading_illustration():
+    # Uses a dedicated child_id, not the shared _child() helper -- starting a
+    # literacy-game session is stateful (app.knowledge.literacy_games.SESSIONS
+    # is a module-level dict keyed by child_id), and _child() reuses the same
+    # "test-child" id for every other test in this file. A session left
+    # active under that shared id would hijack every later test's next
+    # message as "the answer to this game" instead of processing it normally.
+    from app.knowledge import literacy_games
+    child = {"child_id": "literacy-game-test-child", "age": 4, "persona_name": "Rosey"}
+    try:
+        resp = client.post("/chat", json={"child": child, "message": "let's play a letter game"})
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["action"] == "ALLOW"
+        assert "Round 1" in body["reply"]
+        assert body["topic"] == "reading"
+    finally:
+        literacy_games.SESSIONS.pop("literacy-game-test-child", None)
+
+
 def test_chat_columbus_keeps_its_specific_illustration_not_generic_history():
     resp = client.post("/chat", json={"child": _child(), "message": "how did christopher columbus get to america"})
     assert resp.status_code == 200

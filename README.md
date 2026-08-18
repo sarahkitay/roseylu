@@ -97,20 +97,49 @@ illustration for the same message were both already correct. Every other
 topic, and all open-ended conversation, still goes through the generative
 model with all of its documented limitations below.
 
-## Curated History, English, and Math answers
+## Curated History, English, Math, Science, Life, and Skills answers
 
 Beyond arithmetic, `backend/app/knowledge/curated_qa.py` is a hand-authored,
-keyword-matched lookup of ~40 common curriculum questions across History,
-English, and Math (e.g. "how did Christopher Columbus come to the
-Americas," "what is a synonym," "what is a decimal") -- checked before
-falling back to the generative model, same reasoning as the math templates:
-the local model has no reliable general knowledge at its current training
-scale, and open-ended factual questions produced fluent-looking nonsense
-during live testing. This is **original content Claude wrote directly, not
-text copied from any textbook** -- see that file's docstring for the full
-reasoning, including why sensitive topics (slavery, WWII) are included (they're
-standard elementary/middle-school curriculum) and treated carefully, and why
-this is a curated *starting set*, not a claim of exhaustive K-12 coverage.
+keyword-matched lookup of curated questions across six subjects -- checked
+before falling back to the generative model, same reasoning as the math
+templates: the local model has no reliable general knowledge at its current
+training scale, and open-ended factual questions produced fluent-looking
+nonsense during live testing. This is **original content Claude wrote
+directly, not text copied from any textbook** -- see that file's docstring
+for the full reasoning, including why sensitive topics (slavery, WWII) are
+included (they're standard elementary/middle-school curriculum) and treated
+carefully, and why this is a curated *starting set*, not a claim of
+exhaustive K-12 coverage.
+
+- **History, English, Math** -- ~50 common curriculum questions ("how did
+  Christopher Columbus come to the Americas," "what is a synonym," "what is
+  a decimal," cell biology, the periodic table).
+- **Science** -- astronomy (sun/moon/gravity/sky), cells, and basic chemistry,
+  split into two illustration styles: astronomy gets the sun-and-planets
+  scene, everything else gets a subject-neutral "bubbling beaker" scene --
+  found live that reusing the astronomy scene for a water-composition answer
+  read as a mismatch.
+- **Life** -- everyday emotional and family questions ("why does mommy
+  yell," "how do I make friends," grief over a pet, fear of the dark, body
+  image) written the way a thoughtful child psychologist would talk, not a
+  generic AI assistant. Every entry validates the child's feelings and points
+  toward a trusted adult rather than trying to fully resolve it in-app --
+  Rosey isn't a therapist and the copy doesn't pretend otherwise. Uses its
+  own calm, muted illustration (a soft heart, gentle sparkles) since it plays
+  next to grief and fear answers, not just cheerful ones.
+- **Skills** -- practical how-to questions distinct from Life's emotional
+  content, starting with tying shoes (age-tiered: preschoolers get the
+  "bunny ears" method specifically, not just simpler wording).
+
+A recurring bug shape while building this out: the typo-tolerant fuzzy
+fallback (below) picks a keyword phrase's *longest* word as the word worth
+being typo-tolerant about, which works for rare curriculum terms
+("calculus," "photosynthesis") but breaks for everyday words ("friend,"
+"makes," "world") that can appear in a totally unrelated message and get
+matched via an exact (non-typo) ratio. Fixed with a stoplist
+(`_GENERIC_ANCHOR_STOPWORDS`) and a `QAEntry.fuzzy_eligible` flag (off for
+the whole LIFE category, where a mismatch is costlier than a missed typo) --
+see the file's own comments for the running list of what was found and why.
 
 **Columbus is the flagship example of the fuller experience**, built out
 after live feedback on the plain-paragraph version: it's tiered by age
@@ -132,6 +161,39 @@ pattern to more topics is straightforward but not yet done everywhere.
 Age support also now goes down to `AgeTier.PRESCHOOL` (3-6), added on
 request -- see `docs/BLOCKERS.md` for the honest caveat that a text chat
 interface has real limits for children who can't read or type yet.
+
+## A small hand-authored haiku generator
+
+Ask "write a haiku about the sun" (or moon, rain, ocean, snow, stars,
+flowers) and `backend/app/knowledge/haiku.py` returns a real, hand-verified
+5-7-5 haiku instead of routing to curated_qa's "what is a haiku" *definition*
+entry, which is what used to happen (a fuzzy match on the word "haiku" answered
+what a haiku *is*, not the actual request to write one). This is genuine
+creative generation, which the small local model has no reliable way to do,
+so a handful of classic topics are hand-authored instead of generated --
+deliberately narrow, same "curated set, not exhaustive" honesty as
+`curated_qa.py`. A topic outside the list falls through to the normal
+curated/generative flow rather than fabricating something. Note this can't
+help with "write a poem about it" (referring to something from a few turns
+back) -- the backend has no conversation memory between messages, so there's
+no way to resolve "it" to anything; that's a separate, harder architectural
+gap, not something this module attempts to solve.
+
+## Literacy mini-games for early readers
+
+Ask "let's play a letter game" or "play a rhyming game" for a short,
+stateful, multiple-choice practice round (`backend/app/knowledge/
+literacy_games.py`) -- letter-sound matching and rhyming, aimed at the
+youngest kids this app supports. Distinct from the Columbus quiz (which
+tests recall of something just taught): this is about building a
+pre-reading skill through repeated, game-shaped practice, and answers are
+graded the same reliable letter-or-text-match way the quiz engine already
+uses, since an open-ended phonetic answer ("say the B sound out loud") isn't
+something a text-only interface can check. Completing a round triggers the
+same sparkle-burst celebration as finishing a quiz. This doesn't remove
+`docs/BLOCKERS.md`'s existing caveat about text chat and pre-readers --
+it's useful for kids at the edge of that limit, not a replacement for
+audio-based phonics instruction.
 
 ## The chat UI trains the model as you use it
 

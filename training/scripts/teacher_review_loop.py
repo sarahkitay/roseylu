@@ -33,6 +33,14 @@ Setup:
 Usage:
     python3 training/scripts/teacher_review_loop.py --once
     python3 training/scripts/teacher_review_loop.py --watch --interval 30
+    python3 training/scripts/teacher_review_loop.py --watch --budget 5.00
+
+Spend cap: defaults to $2.00 for the whole run (or the whole --watch session --
+not per-poll), see training/scripts/cost_tracker.py. Overridable with --budget
+or $DEV_TOOLING_API_BUDGET_USD. Checked before every teacher-model call; on
+reaching the cap the run stops cleanly (checkpoint saved at the line it
+stopped on, so a later run with a raised budget resumes exactly there) rather
+than continuing to spend.
 """
 from __future__ import annotations
 
@@ -50,6 +58,8 @@ sys.path.insert(0, str(_ROOT / "backend"))
 from dotenv import load_dotenv  # noqa: E402
 
 load_dotenv(_ROOT / ".env")
+
+from cost_tracker import BudgetExceeded, CostTracker, DEFAULT_BUDGET_USD  # noqa: E402
 
 _LIVE_LOG_PATH = _ROOT / "training" / "data" / "corpus" / "live_interactions.jsonl"
 _REVIEWED_PATH = _ROOT / "training" / "data" / "corpus" / "teacher_reviewed.jsonl"
@@ -99,7 +109,10 @@ _TEACHER_MAX_TOKENS = 800  # found via a real truncated response at 500 -- the J
 # wrapper plus a full corrected_reply sometimes needs more room than a short answer alone
 
 
-def call_teacher(system: str, user: str, backend: str, model: str) -> str:
+def call_teacher(system: str, user: str, backend: str, model: str, tracker: CostTracker) -> str:
+    # Checked immediately before the network call -- the actual spend cap,
+    # not just bookkeeping. See cost_tracker.CostTracker.
+    tracker.check_budget_or_raise()
     if backend == "anthropic":
         import anthropic
 
@@ -108,7 +121,9 @@ def call_teacher(system: str, user: str, backend: str, model: str) -> str:
             model=model, max_tokens=_TEACHER_MAX_TOKENS, system=system,
             messages=[{"role": "user", "content": user}],
         )
-        return "".join(b.text for b in response.content if getattr(b, "type", None) == "text").strip()
+        text = "".join(b.text for b in response.content if getattr(b, "type", None) == "text").strip()
+        tracker.record_usage(model, response.usage.input_tokens, response.usage.output_tokens)
+        return text
     if backend == "openai":
         import openai
 
@@ -117,7 +132,9 @@ def call_teacher(system: str, user: str, backend: str, model: str) -> str:
             model=model, max_tokens=_TEACHER_MAX_TOKENS,
             messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
         )
-        return (response.choices[0].message.content or "").strip()
+        text = (response.choices[0].message.content or "").strip()
+        tracker.record_usage(model, response.usage.prompt_tokens, response.usage.completion_tokens)
+        return text
     raise ValueError(f"unknown teacher backend: {backend}")
 
 
@@ -134,9 +151,9 @@ def _strip_markdown_fence(raw: str) -> str:
     return text.strip()
 
 
-def review_one(child_message: str, rosey_reply: str, backend: str, model: str) -> dict:
+def review_one(child_message: str, rosey_reply: str, backend: str, model: str, tracker: CostTracker) -> dict:
     user = f"Child's message: {child_message}\n\nRosey's reply: {rosey_reply}"
-    raw = call_teacher(_TEACHER_SYSTEM_PROMPT, user, backend, model)
+    raw = call_teacher(_TEACHER_SYSTEM_PROMPT, user, backend, model, tracker)
     try:
         return json.loads(_strip_markdown_fence(raw))
     except json.JSONDecodeError:
@@ -155,7 +172,7 @@ def _save_checkpoint(lines_processed: int) -> None:
     _CHECKPOINT_PATH.write_text(json.dumps({"lines_processed": lines_processed}))
 
 
-def process_new_interactions(backend: str, model: str) -> int:
+def process_new_interactions(backend: str, model: str, tracker: CostTracker) -> int:
     if not _LIVE_LOG_PATH.exists():
         return 0
 
@@ -184,7 +201,14 @@ def process_new_interactions(backend: str, model: str) -> int:
                 continue
 
             try:
-                verdict = review_one(entry["child"], entry["rosey"], backend, model)
+                verdict = review_one(entry["child"], entry["rosey"], backend, model, tracker)
+            except BudgetExceeded:
+                # Same checkpoint-on-failure behavior as any other stop below
+                # (retry this exact line next run), but re-raised so --watch's
+                # poll loop stops entirely instead of hitting this again every
+                # --interval seconds forever.
+                _save_checkpoint(i)
+                raise
             except Exception as e:  # noqa: BLE001 -- likely transient (network/API) -- retry next run
                 print(f"  review failed on line {i}, stopping here to retry next run: {e}")
                 break
@@ -214,6 +238,10 @@ def main() -> None:
     parser.add_argument("--watch", action="store_true", help="keep polling for new interactions instead of exiting")
     parser.add_argument("--interval", type=int, default=30, help="seconds between polls in --watch mode")
     parser.add_argument("--once", action="store_true", help="process everything new once, then exit (default)")
+    parser.add_argument("--budget", type=float, default=None,
+                         help=f"hard USD cap on external API spend for this run "
+                              f"(default ${DEFAULT_BUDGET_USD:.2f}, or $DEV_TOOLING_API_BUDGET_USD); "
+                              f"in --watch mode this is the cap for the whole watch session, not per-poll")
     args = parser.parse_args()
 
     backend = args.backend or os.environ.get("TEACHER_BACKEND")
@@ -227,23 +255,32 @@ def main() -> None:
     # BEFORE touching any log lines -- a config error is not a per-line
     # failure and shouldn't burn through the checkpoint one line at a time.
 
+    tracker = CostTracker(budget_usd=args.budget)
+
     print(f"teacher: {backend}/{model}")
     print(f"watching: {_LIVE_LOG_PATH}")
-    print(f"writing reviews to: {_REVIEWED_PATH}\n")
+    print(f"writing reviews to: {_REVIEWED_PATH}")
+    print(f"budget: ${tracker.budget_usd:.2f}\n")
 
     if args.watch:
         print(f"polling every {args.interval}s -- Ctrl+C to stop")
         try:
             while True:
-                n = process_new_interactions(backend, model)
+                n = process_new_interactions(backend, model, tracker)
                 if n:
-                    print(f"reviewed {n} new interaction(s)")
+                    print(f"reviewed {n} new interaction(s) (${tracker.spent_usd:.4f} spent)")
                 time.sleep(args.interval)
+        except BudgetExceeded as e:
+            print(f"\n{e}")
         except KeyboardInterrupt:
             print("\nstopped")
     else:
-        n = process_new_interactions(backend, model)
-        print(f"\nreviewed {n} new interaction(s)")
+        try:
+            n = process_new_interactions(backend, model, tracker)
+        except BudgetExceeded as e:
+            print(f"\n{e}")
+            n = 0
+        print(f"\nreviewed {n} new interaction(s) (${tracker.spent_usd:.4f} spent)")
 
 
 if __name__ == "__main__":
