@@ -23,6 +23,13 @@ before treating anything here as ready for a real child to use.
 - `docs/ARCHITECTURE.md` -- how the pieces fit together, current vs. target.
 - `docs/BLOCKERS.md` -- what has to happen, outside of engineering, before
   this is safe to launch.
+- `docs/VALUES_MODEL.md` -- honest accounting of where compassion currently
+  comes from (100% hand-authored templates, 0% trained into the model
+  itself) and what it would take for that to change.
+- `docs/EVAL_CRITERIA.md` -- the fuller set of things worth measuring
+  (guardrail recall/precision, tone, curriculum accuracy, generation
+  competence, online-burst regressions), most of which aren't implemented
+  yet -- the spec `training/scripts/evaluate.py` should grow into.
 - `docs/COMPLIANCE_COPPA.md`, `docs/DATA_RETENTION_POLICY.md` -- compliance
   posture (both explicitly marked draft/unreviewed).
 

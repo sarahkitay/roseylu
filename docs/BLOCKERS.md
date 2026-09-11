@@ -62,7 +62,7 @@ of engineering polish substitutes for them.
 
 ## Capability gap (not a safety blocker, but don't oversell it)
 
-8. **The from-scratch model is not conversationally competent yet, and
+10. **The from-scratch model is not conversationally competent yet, and
    quality is inconsistent even within what it's tuned for.** It's a real,
    working training pipeline -- see `training/README.md` for the full
    story, including a real mistake (an over-trained BPE run that had a
@@ -84,7 +84,7 @@ of engineering polish substitutes for them.
 
 ## A new consideration from adding online learning
 
-9. **Continual training on live conversation complicates "clinically
+11. **Continual training on live conversation complicates "clinically
    reviewed" as a one-time gate.** `backend/app/generation/online_trainer.py`
    means the model's weights on disk today are not the same weights that
    existed after the last full training run -- they drift with every dev
